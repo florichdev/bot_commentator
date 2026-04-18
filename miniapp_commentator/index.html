@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#181818">
+  <title>Комментарии MAX</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="app__header">
+      <div class="app__titleWrap">
+        <h1 class="app__title">💬 Комментарии</h1>
+        <p id="postInfo" class="app__postInfo">Пост: —</p>
+      </div>
+      <button id="shareBtn" class="btn btn--ghost" type="button">Поделиться</button>
+    </header>
+
+    <section class="composer">
+      <textarea
+        id="commentInput"
+        class="composer__input"
+        placeholder="Напишите комментарий..."
+        maxlength="1200"
+      ></textarea>
+      <div class="composer__footer">
+        <span id="charCounter" class="composer__counter">0 / 1200</span>
+        <button id="sendBtn" class="btn btn--primary" type="button">Отправить</button>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <button id="sortBtn" class="btn btn--ghost" type="button">Сначала новые</button>
+      <button id="clearBtn" class="btn btn--ghost btn--danger" type="button">Очистить пост</button>
+    </section>
+
+    <section class="listWrap">
+      <ul id="commentsList" class="comments"></ul>
+      <p id="emptyState" class="emptyState">Пока нет комментариев. Будьте первым 👇</p>
+    </section>
+  </main>
+
+  <template id="commentTemplate">
+    <li class="comment">
+      <div class="comment__head">
+        <span class="comment__author"></span>
+        <time class="comment__time"></time>
+      </div>
+      <p class="comment__text"></p>
+      <div class="comment__actions">
+        <button class="comment__action" data-action="reply" type="button">Ответить</button>
+        <button class="comment__action" data-action="delete" type="button">Удалить</button>
+      </div>
+    </li>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+</html>
