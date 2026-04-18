@@ -4,53 +4,138 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#181818">
-  <title>Комментарии MAX</title>
+  <title>Комментатор</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <main class="app">
-    <header class="app__header">
-      <div class="app__titleWrap">
-        <h1 class="app__title">💬 Комментарии</h1>
-        <p id="postInfo" class="app__postInfo">Пост: —</p>
+  <svg class="icons" aria-hidden="true" focusable="false">
+    <symbol id="i_share" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M14 4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0V6.414l-9.293 9.293a1 1 0 0 1-1.414-1.414L18.586 5H15a1 1 0 0 1-1-1z"/>
+      <path fill="currentColor" d="M5 7a2 2 0 0 0-2 2v10a3 3 0 0 0 3 3h10a2 2 0 0 0 2-2v-5a1 1 0 1 0-2 0v5H6a1 1 0 0 1-1-1V9h5a1 1 0 1 0 0-2z"/>
+    </symbol>
+    <symbol id="i_attach" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M8.5 12.5v5a4 4 0 0 0 8 0V8.8a2.8 2.8 0 1 0-5.6 0v7.7a1.6 1.6 0 0 0 3.2 0V10"/>
+    </symbol>
+    <symbol id="i_send" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M3.4 11.2 20.6 3.6c.8-.36 1.64.48 1.28 1.28l-7.6 17.2c-.32.72-1.34.67-1.59-.07l-2.02-6.06L4 12.79c-.74-.25-.79-1.27-.6-1.59zM6.7 11.9l4.9 1.63c.3.1.54.34.64.64l1.63 4.9 5.02-11.34z"/>
+    </symbol>
+    <symbol id="i_search" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M10.5 4a6.5 6.5 0 0 1 5.05 10.6l4.43 4.43a1 1 0 1 1-1.42 1.42l-4.43-4.43A6.5 6.5 0 1 1 10.5 4m0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9"/>
+    </symbol>
+    <symbol id="icon_reply_20" fill="none" viewBox="0 0 20 20">
+      <path fill="currentColor" fill-rule="evenodd" d="M9.486 2.563a.83.83 0 0 1 .514.77V6.45h.135a8.53 8.53 0 0 1 8.488 7.673l.123 1.21a.833.833 0 0 1-1.363.725l-1.206-1.004A6.78 6.78 0 0 0 10 13.739v2.928a.833.833 0 0 1-1.423.589L2.5 11.178a1.667 1.667 0 0 1 0-2.357l6.077-6.077a.83.83 0 0 1 .909-.18M8.333 13.195c0-.399.207-.771.6-.884l.582-.167a8.44 8.44 0 0 1 7.312 1.302 6.866 6.866 0 0 0-6.692-5.33h-.968a.833.833 0 0 1-.834-.833V5.345L3.678 10l4.655 4.655z" clip-rule="evenodd"/>
+    </symbol>
+    <symbol id="icon_copy_20" fill="none" viewBox="0 0 20 20">
+      <path fill="currentColor" fill-rule="evenodd" d="M7.27 5.002q-.526.012-1.05.056c-.639.05-1.207.093-1.679.202-.524.121-.984.331-1.392.738-.412.412-.62.883-.742 1.416-.11.484-.155 1.07-.208 1.738l-.004.053c-.063.8-.11 1.667-.11 2.462s.047 1.662.11 2.461c.047.598.08 1.205.212 1.791.121.534.33 1.005.742 1.416.408.407.868.617 1.392.738.472.109 1.04.153 1.68.203l.053.004c.414.032.834.053 1.227.053s.813-.02 1.226-.053l.054-.004c.64-.05 1.207-.094 1.68-.203.524-.12.984-.33 1.391-.738.412-.411.621-.882.742-1.416a8 8 0 0 0 .139-.921c.324-.007.661-.025.994-.051l.054-.004c.64-.05 1.207-.094 1.68-.203.524-.12.984-.331 1.391-.738.412-.412.621-.883.742-1.416.11-.484.156-1.07.208-1.738l.005-.053c.063-.8.11-1.667.11-2.462 0-.38-.01-.776-.029-1.173l-.004-.102c-.028-.622-.051-1.132-.276-1.637s-.609-.884-1.08-1.349l-1.25-1.235c-.349-.345-.634-.627-1.012-.828a3 3 0 0 0-.537-.22c-.41-.123-.755-.123-1.171-.122-.447 0-.892.023-1.338.057-.639.05-1.207.094-1.679.203-.524.12-.984.33-1.392.738-.412.411-.62.882-.742 1.416a8 8 0 0 0-.138.921" clip-rule="evenodd"/>
+    </symbol>
+    <symbol id="icon_link_20" fill="none" viewBox="0 0 20 20">
+      <path fill="currentColor" d="M10.414 7.548c-.238.375-.138.866.196 1.158q.178.154.352.328c.35.35.643.722.87 1.047.266.38.313.795.167 1.133-.277.647-.86 1.663-2.076 2.88s-2.232 1.8-2.878 2.077c-.338.145-.753.098-1.133-.168a8 8 0 0 1-1.047-.87 8 8 0 0 1-.87-1.047c-.265-.38-.312-.795-.167-1.133.224-.521.646-1.283 1.438-2.196.3-.345.3-.866-.023-1.19a.797.797 0 0 0-1.163.02c-.945 1.073-1.48 2.008-1.78 2.709-.409.952-.206 1.974.333 2.744.267.382.622.834 1.057 1.27.434.434.887.789 1.268 1.056.77.54 1.791.743 2.744.334.847-.365 2.038-1.07 3.397-2.43s2.064-2.551 2.428-3.399c.41-.953.207-1.974-.333-2.745a9 9 0 0 0-1.618-1.783c-.364-.307-.906-.197-1.162.205"/>
+      <path fill="currentColor" d="M9.586 12.451c.238-.374.138-.866-.196-1.157a7 7 0 0 1-.352-.328 8 8 0 0 1-.87-1.047c-.266-.38-.313-.796-.167-1.134.277-.646.86-1.663 2.076-2.88 1.216-1.215 2.232-1.799 2.878-2.076.338-.146.753-.099 1.133.167a8 8 0 0 1 1.047.87c.35.35.643.723.87 1.047.265.38.312.796.167 1.134-.224.52-.646 1.282-1.438 2.195-.3.345-.3.867.023 1.19a.797.797 0 0 0 1.163-.02c.945-1.072 1.479-2.008 1.78-2.709.409-.952.206-1.973-.333-2.744A9.6 9.6 0 0 0 16.31 3.69a9.6 9.6 0 0 0-1.268-1.057c-.77-.54-1.791-.742-2.744-.333-.847.364-2.038 1.07-3.397 2.43-1.36 1.36-2.064 2.55-2.428 3.398-.41.953-.207 1.974.333 2.745a9 9 0 0 0 1.618 1.783c.364.307.906.197 1.162-.205"/>
+    </symbol>
+    <symbol id="icon_report_20" fill="none" viewBox="0 0 20 20">
+      <path fill="currentColor" d="M10 5.417c.461 0 .834.373.834.833v4.583a.833.833 0 1 1-1.667 0V6.25c0-.46.374-.833.834-.833M10 14.792a1.042 1.042 0 1 0 0-2.084 1.042 1.042 0 0 0 0 2.084"/>
+      <path fill="currentColor" fill-rule="evenodd" d="M4.111 15.891c.7.7 1.483 1.377 1.989 1.8.347.29.773.466 1.224.507.657.059 1.69.134 2.678.134.99 0 2.023-.075 2.68-.134.45-.04.875-.217 1.223-.507a31 31 0 0 0 1.99-1.8c.7-.699 1.376-1.482 1.799-1.989.29-.347.466-.772.507-1.223.059-.657.134-1.69.134-2.679 0-.99-.075-2.022-.134-2.679a2.2 2.2 0 0 0-.507-1.223 32 32 0 0 0-1.8-1.99 31 31 0 0 0-1.99-1.8 2.2 2.2 0 0 0-1.222-.506 32 32 0 0 0-2.68-.134c-.988 0-2.021.075-2.678.134-.451.04-.877.217-1.224.507-.506.423-1.29 1.1-1.989 1.8a32 32 0 0 0-1.799 1.988c-.29.348-.467.773-.507 1.224-.059.657-.134 1.69-.134 2.679s.075 2.022.134 2.679c.04.45.217.876.507 1.223.423.507 1.1 1.29 1.8 1.99" clip-rule="evenodd"/>
+    </symbol>
+    <symbol id="icon_delete_20" fill="none" viewBox="0 0 20 20">
+      <path fill="currentColor" fill-rule="evenodd" d="M6.744 3.509c.094-.377.289-.77.666-1.1.581-.51 1.447-.742 2.59-.742 1.145 0 2.01.232 2.591.741.378.331.573.724.666 1.1 3.499.44 4.244 1.631 4.244 2.742 0 .654-.26 1.337-1.189 1.878q-.087.567-.152 1.162a76 76 0 0 0-.192 2.137l-.009.104a85 85 0 0 1-.229 2.498l-.005.048c-.054.487-.104.947-.227 1.367a3.4 3.4 0 0 1-.724 1.302c-.339.395-.656.67-1.032.868-.34.178-.694.273-1.026.363l-.042.01c-.74.2-1.637.346-2.677.346-.972 0-1.82-.128-2.53-.307l-.043-.011c-.35-.088-.72-.182-1.072-.362-.393-.2-.722-.483-1.07-.891-.777-.91-.85-1.722-.949-2.809l-.007-.08q-.072-.81-.134-1.557c-.128-1.535-.24-2.886-.463-4.165C2.767 7.607 2.5 6.914 2.5 6.25c0-1.11.745-2.302 4.243-2.741" clip-rule="evenodd"/>
+    </symbol>
+    <symbol id="icon_done_round_20" fill="none" viewBox="0 0 20 20">
+      <path fill="currentColor" d="M14.756 8.09a.833.833 0 0 0-1.179-1.18L8.75 11.739 6.423 9.411a.833.833 0 1 0-1.179 1.178l2.917 2.917a.833.833 0 0 0 1.178 0z"/>
+      <path fill="currentColor" fill-rule="evenodd" d="M10 1.667a8.333 8.333 0 1 0 0 16.666 8.333 8.333 0 0 0 0-16.666M3.333 10a6.667 6.667 0 1 1 13.334 0 6.667 6.667 0 0 1-13.334 0" clip-rule="evenodd"/>
+    </symbol>
+  </svg>
+  <div class="chat">
+    <header class="chat__header">
+      <div class="chat__headerInner">
+        <div class="chat__title">
+          <div class="chat__titleLine">Комментатор</div>
+          <div id="postInfo" class="chat__subtitle">Пост: —</div>
+        </div>
+        <button id="shareBtn" class="iconBtn" type="button" aria-label="Поделиться">
+          <svg class="icon"><use href="#i_share"></use></svg>
+        </button>
       </div>
-      <button id="shareBtn" class="btn btn--ghost" type="button">Поделиться</button>
+      <div class="chat__headerBlur"></div>
     </header>
 
-    <section class="composer">
-      <textarea
-        id="commentInput"
-        class="composer__input"
-        placeholder="Напишите комментарий..."
-        maxlength="1200"
-      ></textarea>
-      <div class="composer__footer">
-        <span id="charCounter" class="composer__counter">0 / 1200</span>
-        <button id="sendBtn" class="btn btn--primary" type="button">Отправить</button>
+    <section class="chat__controls">
+      <button id="sortBtn" class="pill" type="button">Сначала новые</button>
+      <button id="clearBtn" class="pill pill--danger" type="button">Очистить</button>
+      <button id="searchToggleBtn" class="pill pill--icon" type="button" aria-label="Поиск">
+        <svg class="icon"><use href="#i_search"></use></svg>
+      </button>
+    </section>
+    <section class="chat__tools">
+      <div id="commentsCount" class="commentsCount">Комментариев: 0</div>
+      <div id="searchPanel" class="searchPanel" hidden>
+        <input id="searchInput" class="searchInput" type="text" placeholder="Поиск по комментариям">
+        <button id="searchCloseBtn" class="searchCloseBtn" type="button" aria-label="Закрыть поиск">✕</button>
       </div>
     </section>
 
-    <section class="toolbar">
-      <button id="sortBtn" class="btn btn--ghost" type="button">Сначала новые</button>
-      <button id="clearBtn" class="btn btn--ghost btn--danger" type="button">Очистить пост</button>
+    <section class="chat__body" aria-label="Список комментариев">
+      <ul id="commentsList" class="msgs"></ul>
+      <div id="emptyState" class="emptyCapsule">Пока нет комментариев. Будьте первым 👇</div>
     </section>
+    <button id="scrollDownBtn" class="scrollDownBtn" type="button" aria-label="Прокрутить вниз">↓</button>
+    <div id="contextMenuOverlay" class="contextMenuOverlay" hidden></div>
+    <div id="contextMenu" class="comment-context-menu-popover" role="dialog" aria-label="Действия с комментарием" hidden>
+      <div class="comment-context-menu" role="menu">
+        <div id="contextReactions" class="comment-context-menu__reactions"></div>
+        <button type="button" class="comment-context-menu__item" data-menu-action="reply" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_reply_20"></use></svg><span class="comment-context-menu__item-label">Ответить</span></button>
+        <button type="button" class="comment-context-menu__item" data-menu-action="copy" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_copy_20"></use></svg><span class="comment-context-menu__item-label">Скопировать</span></button>
+        <button type="button" class="comment-context-menu__item" data-menu-action="copy-link" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_link_20"></use></svg><span class="comment-context-menu__item-label">Скопировать ссылку</span></button>
+        <button type="button" class="comment-context-menu__item" data-menu-action="report" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_report_20"></use></svg><span class="comment-context-menu__item-label">Пожаловаться</span></button>
+        <button type="button" class="comment-context-menu__item comment-context-menu__item--danger" data-menu-action="delete" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_delete_20"></use></svg><span class="comment-context-menu__item-label">Удалить</span></button>
+        <div class="comment-context-menu__divider" aria-hidden="true"></div>
+        <button type="button" class="comment-context-menu__item" data-menu-action="select" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_done_round_20"></use></svg><span class="comment-context-menu__item-label">Выбрать</span></button>
+      </div>
+    </div>
 
-    <section class="listWrap">
-      <ul id="commentsList" class="comments"></ul>
-      <p id="emptyState" class="emptyState">Пока нет комментариев. Будьте первым 👇</p>
-    </section>
-  </main>
+    <footer class="chat__composer">
+      <div class="chat__composerBlur"></div>
+      <div id="replyPreview" class="replyPreview" hidden>
+        <span id="replyPreviewAuthor" class="replyPreview__author"></span>
+        <span id="replyPreviewText" class="replyPreview__text"></span>
+        <button id="replyCancelBtn" class="replyPreview__cancel" type="button" aria-label="Отменить ответ">×</button>
+      </div>
+      <div class="composer">
+        <button class="iconBtn iconBtn--attach" type="button" aria-label="Вложения" disabled>
+          <svg class="icon"><use href="#i_attach"></use></svg>
+        </button>
+        <textarea
+          id="commentInput"
+          class="composer__input"
+          placeholder="Сообщение"
+          rows="1"
+          maxlength="4000"
+        ></textarea>
+        <button id="sendBtn" class="sendBtn" type="button" aria-label="Отправить">
+          <svg class="icon icon--send"><use href="#i_send"></use></svg>
+        </button>
+      </div>
+      <div class="composer__meta">
+        <span id="charCounter" class="composer__counter">0 / 4000</span>
+      </div>
+    </footer>
+  </div>
 
   <template id="commentTemplate">
-    <li class="comment">
-      <div class="comment__head">
-        <span class="comment__author"></span>
-        <time class="comment__time"></time>
-      </div>
-      <p class="comment__text"></p>
-      <div class="comment__actions">
-        <button class="comment__action" data-action="reply" type="button">Ответить</button>
-        <button class="comment__action" data-action="delete" type="button">Удалить</button>
+    <li class="msg">
+      <div class="msg__avatar" aria-hidden="true"></div>
+      <div class="bubble">
+        <div class="bubble__meta">
+          <span class="bubble__author"></span>
+        </div>
+        <div class="bubble__text"></div>
+        <div class="bubble__reactions"></div>
+        <div class="bubble__footer">
+          <time class="bubble__time"></time>
+          <button class="bubble__action" data-action="reply-inline" type="button">Ответить</button>
+        </div>
       </div>
     </li>
   </template>

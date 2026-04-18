@@ -1,16 +1,20 @@
 (function () {
   const STORAGE_PREFIX = "max-commentator:v1:";
-  const MAX_LEN = 1200;
+  const MAX_LEN = 4000;
 
   const state = {
     postId: null,
-    sortDesc: true,
+    sortDesc: false,
     comments: [],
     user: {
       id: "guest",
       name: "Гость",
     },
     apiBase: "",
+    replyTo: null,
+    contextCommentId: null,
+    searchQuery: "",
+    searchOpen: false,
   };
 
   const el = {
@@ -21,10 +25,25 @@
     sortBtn: document.getElementById("sortBtn"),
     clearBtn: document.getElementById("clearBtn"),
     shareBtn: document.getElementById("shareBtn"),
+    searchToggleBtn: document.getElementById("searchToggleBtn"),
+    searchPanel: document.getElementById("searchPanel"),
+    searchInput: document.getElementById("searchInput"),
+    searchCloseBtn: document.getElementById("searchCloseBtn"),
+    commentsCount: document.getElementById("commentsCount"),
     commentsList: document.getElementById("commentsList"),
     emptyState: document.getElementById("emptyState"),
     tpl: document.getElementById("commentTemplate"),
+    replyPreview: document.getElementById("replyPreview"),
+    replyPreviewAuthor: document.getElementById("replyPreviewAuthor"),
+    replyPreviewText: document.getElementById("replyPreviewText"),
+    replyCancelBtn: document.getElementById("replyCancelBtn"),
+    chatBody: document.querySelector(".chat__body"),
+    scrollDownBtn: document.getElementById("scrollDownBtn"),
+    contextMenu: document.getElementById("contextMenu"),
+    contextMenuOverlay: document.getElementById("contextMenuOverlay"),
+    contextReactions: document.getElementById("contextReactions"),
   };
+  const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
   function safeParse(json, fallback) {
     try {
@@ -90,11 +109,79 @@
     return `${STORAGE_PREFIX}${postId}`;
   }
 
+  function normalizeComment(item) {
+    const normalized = { ...item };
+    normalized.reactions = normalized.reactions && typeof normalized.reactions === "object" ? normalized.reactions : {};
+    normalized.reactedBy = normalized.reactedBy && typeof normalized.reactedBy === "object" ? normalized.reactedBy : {};
+    normalized.replyTo = normalized.replyTo || null;
+    return normalized;
+  }
+
+  function getInitials(name) {
+    const parts = String(name || "Пользователь").trim().split(/\s+/).filter(Boolean).slice(0, 2);
+    return parts.map((part) => part[0]).join("") || "П";
+  }
+
+  function findCommentById(id) {
+    return state.comments.find((x) => x.id === id) || null;
+  }
+
+  function closeContextMenu() {
+    state.contextCommentId = null;
+    el.contextMenu.hidden = true;
+    el.contextMenuOverlay.hidden = true;
+  }
+
+  function openContextMenu(commentId, x, y) {
+    state.contextCommentId = commentId;
+    el.contextMenu.hidden = false;
+    el.contextMenuOverlay.hidden = false;
+    const menuWidth = 240;
+    const menuHeight = 320;
+    const left = Math.min(window.innerWidth - menuWidth - 12, Math.max(12, x));
+    const top = Math.min(window.innerHeight - menuHeight - 12, Math.max(12, y));
+    el.contextMenu.style.left = `${left}px`;
+    el.contextMenu.style.top = `${top}px`;
+  }
+
+  function renderContextReactions() {
+    el.contextReactions.innerHTML = "";
+    for (const emoji of REACTIONS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "reactionMenuBtn";
+      btn.dataset.menuReaction = emoji;
+      btn.setAttribute("aria-label", emoji);
+      btn.textContent = emoji;
+      el.contextReactions.appendChild(btn);
+    }
+  }
+
+  async function toggleReaction(item, emoji) {
+    if (!emoji || !REACTIONS.includes(emoji)) return;
+    const current = item.reactedBy?.[state.user.id];
+    item.reactions = item.reactions || {};
+    item.reactedBy = item.reactedBy || {};
+
+    if (current === emoji) {
+      item.reactions[emoji] = Math.max(0, Number(item.reactions[emoji] || 0) - 1);
+      delete item.reactedBy[state.user.id];
+    } else {
+      if (current) {
+        item.reactions[current] = Math.max(0, Number(item.reactions[current] || 0) - 1);
+      }
+      item.reactions[emoji] = Number(item.reactions[emoji] || 0) + 1;
+      item.reactedBy[state.user.id] = emoji;
+    }
+    saveComments();
+    render();
+  }
+
   function loadComments() {
     // local fallback happens in api wrappers
     const raw = localStorage.getItem(storageKey(state.postId));
     const parsed = safeParse(raw || "[]", []);
-    state.comments = Array.isArray(parsed) ? parsed : [];
+    state.comments = Array.isArray(parsed) ? parsed.map(normalizeComment) : [];
   }
 
   function saveComments() {
@@ -120,7 +207,7 @@
         authorName: x.author_name,
         text: x.text,
         createdAt: x.created_at,
-      }));
+      })).map(normalizeComment);
     } catch {
       return null;
     }
@@ -182,7 +269,17 @@
 
   function formatTime(iso) {
     try {
-      return new Date(iso).toLocaleString("ru-RU");
+      const d = new Date(iso);
+      const now = new Date();
+      const sameDay =
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate();
+      if (sameDay) {
+        return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      }
+      return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }) + " " +
+        d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
     } catch {
       return iso;
     }
@@ -195,41 +292,65 @@
       const bb = new Date(b.createdAt).getTime();
       return state.sortDesc ? bb - aa : aa - bb;
     });
+    const query = state.searchQuery.trim().toLowerCase();
+    const filteredList = query ? list.filter((item) => String(item.text || "").toLowerCase().includes(query)) : list;
 
-    el.emptyState.style.display = list.length ? "none" : "block";
-    for (const item of list) {
+    el.commentsCount.textContent = `Комментариев: ${filteredList.length}`;
+    el.emptyState.style.display = filteredList.length ? "none" : "block";
+    let prevDateKey = "";
+    for (const item of filteredList) {
+      const d = new Date(item.createdAt);
+      const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (dateKey !== prevDateKey) {
+        prevDateKey = dateKey;
+        const divider = document.createElement("li");
+        divider.className = "dateDivider";
+        divider.textContent = d.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+        el.commentsList.appendChild(divider);
+      }
       const node = el.tpl.content.firstElementChild.cloneNode(true);
       node.dataset.id = item.id;
-      node.querySelector(".comment__author").textContent = item.authorName || "Пользователь";
-      node.querySelector(".comment__time").textContent = formatTime(item.createdAt);
-      node.querySelector(".comment__text").textContent = item.text;
+      node.id = `comment-${item.id}`;
+      const isMine = item.authorId === state.user.id;
+      node.classList.add(isMine ? "msg--mine" : "msg--other");
+      node.querySelector(".msg__avatar").textContent = getInitials(item.authorName);
+      node.querySelector(".bubble__author").textContent = item.authorName || "Пользователь";
+      node.querySelector(".bubble__time").textContent = formatTime(item.createdAt);
+      node.querySelector(".bubble__text").textContent = item.text;
+      node.classList.toggle("is-selected", !!item.selected);
 
+      const reactionsWrap = node.querySelector(".bubble__reactions");
+      reactionsWrap.innerHTML = "";
+      for (const key of Object.keys(item.reactions || {})) {
+        const count = Number(item.reactions?.[key] || 0);
+        if (count < 1) continue;
+        const pill = document.createElement("span");
+        pill.className = "reactionPill";
+        pill.textContent = `${key} ${count}`;
+        reactionsWrap.appendChild(pill);
+      }
+
+      if (item.replyTo) {
+        const replyLine = document.createElement("div");
+        replyLine.className = "replyPreview replyPreview--inBubble";
+        replyLine.innerHTML = `<span class="replyPreview__author">${item.replyTo.author}</span><span class="replyPreview__text">${item.replyTo.text}</span>`;
+        node.querySelector(".bubble__text").before(replyLine);
+      }
+
+      node.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        openContextMenu(item.id, e.clientX, e.clientY);
+      });
       node.addEventListener("click", (e) => {
         const action = e.target?.dataset?.action;
-        if (!action) return;
-        if (action === "reply") {
-          el.commentInput.value = `@${item.authorName || "Пользователь"} `;
-          el.commentInput.focus();
-          updateCounter();
-        }
-        if (action === "delete") {
-          if (item.authorId !== state.user.id) {
-            alert("Удалять можно только свои комментарии.");
-            return;
-          }
-          const deletedRemote = await apiDeleteComment(item.id);
-          if (!deletedRemote) {
-            state.comments = state.comments.filter((x) => x.id !== item.id);
-            saveComments();
-          } else {
-            const fresh = await apiListComments();
-            if (fresh) {
-              state.comments = fresh;
-              saveComments();
-            }
-          }
-          render();
-        }
+        if (action !== "reply-inline") return;
+        state.replyTo = {
+          id: item.id,
+          author: item.authorName || "Пользователь",
+          text: String(item.text || "").slice(0, 80),
+        };
+        syncReplyPreview();
+        el.commentInput.focus();
       });
 
       el.commentsList.appendChild(node);
@@ -241,6 +362,41 @@
     el.charCounter.textContent = `${len} / ${MAX_LEN}`;
   }
 
+  function syncReplyPreview() {
+    if (!state.replyTo) {
+      el.replyPreview.hidden = true;
+      return;
+    }
+    el.replyPreview.hidden = false;
+    el.replyPreviewAuthor.textContent = state.replyTo.author;
+    el.replyPreviewText.textContent = state.replyTo.text;
+  }
+
+  function syncScrollDownButton() {
+    const body = el.chatBody;
+    if (!body) return;
+    const distance = body.scrollHeight - body.scrollTop - body.clientHeight;
+    el.scrollDownBtn.classList.toggle("is-visible", distance > 220);
+  }
+
+  function scrollToBottom(smooth = true) {
+    const body = el.chatBody;
+    if (!body) return;
+    body.scrollTo({ top: body.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }
+
+  function syncComposerSize() {
+    const node = el.commentInput;
+    if (!node) return;
+
+    node.style.height = "auto";
+    const min = 40;
+    const max = 120;
+    const next = Math.min(max, Math.max(min, node.scrollHeight));
+    node.style.height = `${next}px`;
+    node.style.overflowY = node.scrollHeight > max ? "auto" : "hidden";
+  }
+
   async function addComment(text) {
     const localItem = {
       id: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
@@ -249,16 +405,23 @@
       authorName: state.user.name,
       text,
       createdAt: new Date().toISOString(),
+      replyTo: state.replyTo,
+      reactions: {},
+      reactedBy: {},
     };
-    const remoteItem = await apiCreateComment(text);
+    const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN));
+    const remoteItem = remoteItemRaw ? normalizeComment({ ...remoteItemRaw, replyTo: state.replyTo }) : null;
     if (remoteItem) {
       const fresh = await apiListComments();
       state.comments = fresh || [remoteItem, ...state.comments];
     } else {
       state.comments.push(localItem);
     }
+    state.replyTo = null;
+    syncReplyPreview();
     saveComments();
     render();
+    scrollToBottom();
   }
 
   async function handleSend() {
@@ -271,19 +434,118 @@
     await addComment(text);
     el.commentInput.value = "";
     updateCounter();
+    syncComposerSize();
   }
 
   function setupEvents() {
-    el.commentInput.addEventListener("input", updateCounter);
+    el.commentInput.addEventListener("input", () => {
+      updateCounter();
+      syncComposerSize();
+    });
     el.sendBtn.addEventListener("click", () => { void handleSend(); });
     el.commentInput.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") void handleSend();
+    });
+    el.searchInput.addEventListener("input", () => {
+      state.searchQuery = el.searchInput.value || "";
+      render();
+      syncScrollDownButton();
+    });
+    el.searchToggleBtn.addEventListener("click", () => {
+      state.searchOpen = !state.searchOpen;
+      el.searchPanel.hidden = !state.searchOpen;
+      if (state.searchOpen) el.searchInput.focus();
+    });
+    el.searchCloseBtn.addEventListener("click", () => {
+      state.searchOpen = false;
+      state.searchQuery = "";
+      el.searchInput.value = "";
+      el.searchPanel.hidden = true;
+      render();
+      syncScrollDownButton();
+    });
+    el.replyCancelBtn.addEventListener("click", () => {
+      state.replyTo = null;
+      syncReplyPreview();
+    });
+    el.chatBody.addEventListener("scroll", syncScrollDownButton);
+    el.scrollDownBtn.addEventListener("click", () => scrollToBottom(true));
+    el.contextMenuOverlay.addEventListener("click", closeContextMenu);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeContextMenu();
+    });
+    el.contextMenu.addEventListener("click", async (e) => {
+      const item = findCommentById(state.contextCommentId);
+      if (!item) {
+        closeContextMenu();
+        return;
+      }
+      const reaction = e.target?.dataset?.menuReaction || e.target?.closest("[data-menu-reaction]")?.dataset?.menuReaction;
+      if (reaction) {
+        await toggleReaction(item, reaction);
+        closeContextMenu();
+        return;
+      }
+
+      const action = e.target?.dataset?.menuAction || e.target?.closest("[data-menu-action]")?.dataset?.menuAction;
+      if (!action) return;
+
+      if (action === "reply") {
+        state.replyTo = {
+          id: item.id,
+          author: item.authorName || "Пользователь",
+          text: String(item.text || "").slice(0, 80),
+        };
+        syncReplyPreview();
+        el.commentInput.focus();
+      }
+
+      if (action === "copy") {
+        await navigator.clipboard.writeText(item.text || "");
+      }
+
+      if (action === "copy-link") {
+        const link = `${window.location.origin}${window.location.pathname}?post_id=${encodeURIComponent(state.postId)}#comment-${encodeURIComponent(item.id)}`;
+        await navigator.clipboard.writeText(link);
+      }
+
+      if (action === "report") {
+        alert("Жалоба отправлена.");
+      }
+
+      if (action === "delete") {
+        if (item.authorId === state.user.id) {
+          const deletedRemote = await apiDeleteComment(item.id);
+          if (!deletedRemote) {
+            state.comments = state.comments.filter((x) => x.id !== item.id);
+            saveComments();
+          } else {
+            const fresh = await apiListComments();
+            if (fresh) {
+              state.comments = fresh;
+              saveComments();
+            }
+          }
+          render();
+        } else {
+          alert("Можно удалять только свои комментарии.");
+        }
+      }
+
+      if (action === "select") {
+        item.selected = !item.selected;
+        saveComments();
+        render();
+      }
+
+      closeContextMenu();
     });
 
     el.sortBtn.addEventListener("click", () => {
       state.sortDesc = !state.sortDesc;
       el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
       render();
+      syncScrollDownButton();
     });
 
     el.clearBtn.addEventListener("click", async () => {
@@ -298,6 +560,7 @@
       }
       saveComments();
       render();
+      syncScrollDownButton();
     });
 
     el.shareBtn.addEventListener("click", async () => {
@@ -325,15 +588,22 @@
     state.postId = resolvePostId();
     el.postInfo.textContent = `Пост: ${state.postId}`;
     loadComments();
+    el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
+    el.searchPanel.hidden = true;
     updateCounter();
+    syncComposerSize();
+    syncReplyPreview();
     setupEvents();
+    renderContextReactions();
     render();
+    syncScrollDownButton();
     if (state.apiBase) {
       apiListComments().then((items) => {
         if (items) {
           state.comments = items;
           saveComments();
           render();
+          syncScrollDownButton();
         }
       });
     }
