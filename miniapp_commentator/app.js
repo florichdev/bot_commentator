@@ -7,8 +7,8 @@
     sortDesc: false,
     comments: [],
     user: {
-      id: "guest",
-      name: "Гость",
+      id: "",
+      name: "",
     },
     apiBase: "",
     replyTo: null,
@@ -57,6 +57,21 @@
     return window.WebApp || window.Telegram?.WebApp || null;
   }
 
+  function getInitDataRaw() {
+    const webApp = getWebApp();
+    if (!webApp) return "";
+    if (typeof webApp.initData === "string" && webApp.initData) return webApp.initData;
+    const raw = webApp.initDataManager?.rawInitData;
+    return typeof raw === "string" ? raw : "";
+  }
+
+  function apiHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const initData = getInitDataRaw();
+    if (initData) headers["X-Max-Init-Data"] = initData;
+    return headers;
+  }
+
   function parsePostIdFromStartParam(value) {
     // Возможные варианты payload: "post_123", "post=123", "123"
     if (!value) return null;
@@ -74,6 +89,8 @@
     const params = new URLSearchParams(window.location.search);
     const fromQuery = params.get("post_id") || params.get("post") || params.get("id");
     if (fromQuery) return fromQuery;
+    const fromStartapp = params.get("startapp") || params.get("WebAppStartParam");
+    if (fromStartapp) return parsePostIdFromStartParam(fromStartapp);
 
     const webApp = getWebApp();
     const fromInit = webApp?.initDataUnsafe?.start_param;
@@ -100,9 +117,13 @@
 
     const user = webApp.initDataUnsafe?.user;
     if (user) {
-      state.user.id = String(user.id || "guest");
+      state.user.id = String(user.id || "");
       state.user.name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.username || "Пользователь";
     }
+  }
+
+  function isAuthorizedUser() {
+    return Boolean(state.user.id && state.user.id !== "guest");
   }
 
   function storageKey(postId) {
@@ -214,11 +235,11 @@
   }
 
   async function apiCreateComment(text) {
-    if (!state.apiBase) return null;
+    if (!state.apiBase || !isAuthorizedUser()) return null;
     try {
       const resp = await fetch(`${state.apiBase}/api/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: apiHeaders(),
         body: JSON.stringify({
           post_id: state.postId,
           author_id: state.user.id,
@@ -243,11 +264,11 @@
   }
 
   async function apiDeleteComment(commentId) {
-    if (!state.apiBase) return false;
+    if (!state.apiBase || !isAuthorizedUser()) return false;
     try {
       const resp = await fetch(
         `${state.apiBase}/api/comments/${encodeURIComponent(commentId)}?author_id=${encodeURIComponent(state.user.id)}`,
-        { method: "DELETE" }
+        { method: "DELETE", headers: apiHeaders() }
       );
       const data = await resp.json();
       return !!(resp.ok && data.ok);
@@ -259,7 +280,7 @@
   async function apiClearPostComments() {
     if (!state.apiBase) return false;
     try {
-      const resp = await fetch(`${state.apiBase}/api/comments?post_id=${encodeURIComponent(state.postId)}`, { method: "DELETE" });
+      const resp = await fetch(`${state.apiBase}/api/comments?post_id=${encodeURIComponent(state.postId)}`, { method: "DELETE", headers: apiHeaders() });
       const data = await resp.json();
       return !!(resp.ok && data.ok);
     } catch {
@@ -311,7 +332,7 @@
       const node = el.tpl.content.firstElementChild.cloneNode(true);
       node.dataset.id = item.id;
       node.id = `comment-${item.id}`;
-      const isMine = item.authorId === state.user.id;
+      const isMine = isAuthorizedUser() && item.authorId === state.user.id;
       node.classList.add(isMine ? "msg--mine" : "msg--other");
       node.querySelector(".msg__avatar").textContent = getInitials(item.authorName);
       node.querySelector(".bubble__author").textContent = item.authorName || "Пользователь";
@@ -398,6 +419,10 @@
   }
 
   async function addComment(text) {
+    if (!isAuthorizedUser()) {
+      alert("Нужно открыть комментарии внутри MAX под своим аккаунтом.");
+      return;
+    }
     const localItem = {
       id: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
       postId: state.postId,
@@ -414,8 +439,12 @@
     if (remoteItem) {
       const fresh = await apiListComments();
       state.comments = fresh || [remoteItem, ...state.comments];
-    } else {
+    } else if (!state.apiBase) {
+      // Разрешаем локальный fallback только для локальной разработки.
       state.comments.push(localItem);
+    } else {
+      alert("Не удалось отправить комментарий. Проверьте подключение мини-приложения к API.");
+      return;
     }
     state.replyTo = null;
     syncReplyPreview();
@@ -583,10 +612,15 @@
   }
 
   function boot() {
-    state.apiBase = getApiBase();
     setThemeFromMax();
+    state.apiBase = getApiBase() || window.location.origin;
     state.postId = resolvePostId();
     el.postInfo.textContent = `Пост: ${state.postId}`;
+    if (!isAuthorizedUser()) {
+      el.commentInput.placeholder = "Откройте мини-приложение из MAX";
+      el.commentInput.disabled = true;
+      el.sendBtn.disabled = true;
+    }
     loadComments();
     el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
     el.searchPanel.hidden = true;
