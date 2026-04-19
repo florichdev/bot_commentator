@@ -55,6 +55,12 @@ body{
   overflow: hidden;
 }
 [hidden]{ display:none !important; }
+.theme-light{
+  --text: #1f2330;
+  --other-text: #1f2330;
+  --mine-text: #0f3a5c;
+  --border: rgba(20,20,30,0.16);
+}
 
 .icons{ position:absolute; width:0; height:0; overflow:hidden; }
 .icon{ width: 20px; height: 20px; display:block; }
@@ -423,6 +429,7 @@ body::before{
   margin: 0;
 }
 .composer__input::placeholder{ color: rgba(255,255,255,0.45); }
+.theme-light .composer__input::placeholder{ color: rgba(40,50,66,0.45); }
 
 .iconBtn{
   width: 36px;
@@ -511,6 +518,90 @@ body::before{
   padding: 6px 10px;
   background: rgba(0,0,0,0.2);
   border-color: rgba(255,255,255,0.14);
+}
+.attachmentsBar{
+  margin-top: 8px;
+  width: min(638px, calc(100vw - 28px));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.attachDraftChip{
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.bubble__attachments{
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.attachChip{
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.settingsModal{
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(8,10,16,0.7);
+}
+.settingsModal__content{
+  position: absolute;
+  inset: 0;
+  background: rgba(22,26,36,0.98);
+  padding: calc(18px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  overflow: auto;
+}
+.settingsModal__header{
+  display:flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.settingsModal__title{ font-size: 22px; font-weight: 700; }
+.settingsModal__close{
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 24px;
+}
+.settingsModal__section{ margin-top: 20px; }
+.settingsModal__label{ font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+.settingsModal__row{ display:flex; gap: 8px; flex-wrap: wrap; }
+.settingsChip{
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 9px 12px;
+}
+.settingsModal__palette{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.paletteItem{
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  min-height: 84px;
+  background: linear-gradient(135deg, var(--g1), var(--g2));
+}
+.settingsConnectBtn{
+  width: 100%;
+  border: 1px solid rgba(90,200,250,0.45);
+  background: rgba(90,200,250,0.2);
+  color: #fff;
+  border-radius: 14px;
+  min-height: 44px;
+  font-size: 16px;
 }
 .msg.is-selected .bubble{
   outline: 2px solid rgba(90,200,250,0.55);
@@ -641,7 +732,8 @@ body::before{
     width: calc(100vw - 16px);
   }
   .replyPreview,
-  .composer__meta{
+  .composer__meta,
+  .attachmentsBar{
     width: calc(100vw - 16px);
   }
   body::before{

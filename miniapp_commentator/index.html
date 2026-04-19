@@ -25,6 +25,10 @@
     <symbol id="i_search" viewBox="0 0 24 24">
       <path fill="currentColor" d="M10.5 4a6.5 6.5 0 0 1 5.05 10.6l4.43 4.43a1 1 0 1 1-1.42 1.42l-4.43-4.43A6.5 6.5 0 1 1 10.5 4m0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9"/>
     </symbol>
+    <symbol id="i_settings" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 1 0 12 8.5m0-2A5.5 5.5 0 1 1 12 17.5 5.5 5.5 0 1 1 12 6.5"/>
+      <path fill="currentColor" d="M19.4 13.2a7.7 7.7 0 0 0 .05-2.4l1.55-1.2a1 1 0 0 0 .25-1.28l-1.5-2.6a1 1 0 0 0-1.22-.44l-1.84.73a8.4 8.4 0 0 0-2.1-1.2L14.3 2.9A1 1 0 0 0 13.32 2h-2.64a1 1 0 0 0-.98.9L9.4 4.78a8.4 8.4 0 0 0-2.1 1.2l-1.84-.73a1 1 0 0 0-1.22.44l-1.5 2.6A1 1 0 0 0 3 9.57l1.55 1.2a7.7 7.7 0 0 0 .05 2.43L3 14.43a1 1 0 0 0-.25 1.28l1.5 2.6a1 1 0 0 0 1.22.44l1.84-.73a8.4 8.4 0 0 0 2.1 1.2l.3 1.88a1 1 0 0 0 .98.9h2.64a1 1 0 0 0 .98-.9l.3-1.88a8.4 8.4 0 0 0 2.1-1.2l1.84.73a1 1 0 0 0 1.22-.44l1.5-2.6a1 1 0 0 0-.25-1.28zM16.74 16l-1 .74a1 1 0 0 1-.95.13 6.4 6.4 0 0 1-2.34 1.35 1 1 0 0 1-.68.68l-.16 1.23h-.82l-.2-1.23a1 1 0 0 1-.68-.68 6.4 6.4 0 0 1-2.34-1.35 1 1 0 0 1-.95-.13l-1-.74.5-.86a1 1 0 0 1-.22-.95 5.8 5.8 0 0 1 0-2.7 1 1 0 0 1 .22-.95l-.5-.86 1-.74a1 1 0 0 1 .95-.13 6.4 6.4 0 0 1 2.34-1.35 1 1 0 0 1 .68-.68l.2-1.23h.82l.2 1.23a1 1 0 0 1 .68.68 6.4 6.4 0 0 1 2.34 1.35 1 1 0 0 1 .95.13l1 .74-.5.86a1 1 0 0 1 .22.95 5.8 5.8 0 0 1 0 2.7 1 1 0 0 1-.22.95z"/>
+    </symbol>
     <symbol id="icon_reply_20" fill="none" viewBox="0 0 20 20">
       <path fill="currentColor" fill-rule="evenodd" d="M9.486 2.563a.83.83 0 0 1 .514.77V6.45h.135a8.53 8.53 0 0 1 8.488 7.673l.123 1.21a.833.833 0 0 1-1.363.725l-1.206-1.004A6.78 6.78 0 0 0 10 13.739v2.928a.833.833 0 0 1-1.423.589L2.5 11.178a1.667 1.667 0 0 1 0-2.357l6.077-6.077a.83.83 0 0 1 .909-.18M8.333 13.195c0-.399.207-.771.6-.884l.582-.167a8.44 8.44 0 0 1 7.312 1.302 6.866 6.866 0 0 0-6.692-5.33h-.968a.833.833 0 0 1-.834-.833V5.345L3.678 10l4.655 4.655z" clip-rule="evenodd"/>
     </symbol>
@@ -67,6 +71,9 @@
       <button id="searchToggleBtn" class="pill pill--icon" type="button" aria-label="Поиск">
         <svg class="icon"><use href="#i_search"></use></svg>
       </button>
+      <button id="settingsBtn" class="pill pill--icon" type="button" aria-label="Настройки">
+        <svg class="icon"><use href="#i_settings"></use></svg>
+      </button>
     </section>
     <section class="chat__tools">
       <div id="commentsCount" class="commentsCount">Комментариев: 0</div>
@@ -103,9 +110,10 @@
         <button id="replyCancelBtn" class="replyPreview__cancel" type="button" aria-label="Отменить ответ">×</button>
       </div>
       <div class="composer">
-        <button class="iconBtn iconBtn--attach" type="button" aria-label="Вложения" disabled>
+        <button id="attachBtn" class="iconBtn iconBtn--attach" type="button" aria-label="Вложения">
           <svg class="icon"><use href="#i_attach"></use></svg>
         </button>
+        <input id="fileInput" type="file" hidden multiple accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx">
         <textarea
           id="commentInput"
           class="composer__input"
@@ -117,10 +125,35 @@
           <svg class="icon icon--send"><use href="#i_send"></use></svg>
         </button>
       </div>
+      <div id="attachmentsBar" class="attachmentsBar" hidden></div>
       <div class="composer__meta">
         <span id="charCounter" class="composer__counter">0 / 4000</span>
       </div>
     </footer>
+  </div>
+
+  <div id="settingsModal" class="settingsModal" hidden>
+    <div class="settingsModal__content">
+      <div class="settingsModal__header">
+        <div class="settingsModal__title">Настройки</div>
+        <button id="settingsCloseBtn" class="settingsModal__close" type="button" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="settingsModal__section">
+        <div class="settingsModal__label">Тема</div>
+        <div class="settingsModal__row">
+          <button class="settingsChip" data-theme="light" type="button">Светлая</button>
+          <button class="settingsChip" data-theme="system" type="button">Системная</button>
+          <button class="settingsChip" data-theme="dark" type="button">Темная</button>
+        </div>
+      </div>
+      <div class="settingsModal__section">
+        <div class="settingsModal__label">Градиент фона</div>
+        <div class="settingsModal__palette" id="paletteGrid"></div>
+      </div>
+      <div class="settingsModal__section">
+        <button id="openBotBtn" class="settingsConnectBtn" type="button">Подключение</button>
+      </div>
+    </div>
   </div>
 
   <template id="commentTemplate">

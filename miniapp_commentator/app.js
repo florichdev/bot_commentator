@@ -15,6 +15,9 @@
     contextCommentId: null,
     searchQuery: "",
     searchOpen: false,
+    themeMode: "system",
+    bgScheme: "ocean",
+    attachments: [],
   };
 
   const el = {
@@ -29,6 +32,11 @@
     searchPanel: document.getElementById("searchPanel"),
     searchInput: document.getElementById("searchInput"),
     searchCloseBtn: document.getElementById("searchCloseBtn"),
+    settingsBtn: document.getElementById("settingsBtn"),
+    settingsModal: document.getElementById("settingsModal"),
+    settingsCloseBtn: document.getElementById("settingsCloseBtn"),
+    paletteGrid: document.getElementById("paletteGrid"),
+    openBotBtn: document.getElementById("openBotBtn"),
     commentsCount: document.getElementById("commentsCount"),
     commentsList: document.getElementById("commentsList"),
     emptyState: document.getElementById("emptyState"),
@@ -42,7 +50,20 @@
     contextMenu: document.getElementById("contextMenu"),
     contextMenuOverlay: document.getElementById("contextMenuOverlay"),
     contextReactions: document.getElementById("contextReactions"),
+    attachBtn: document.getElementById("attachBtn"),
+    fileInput: document.getElementById("fileInput"),
+    attachmentsBar: document.getElementById("attachmentsBar"),
   };
+  const THEME_KEY = "max-commentator:theme";
+  const BG_KEY = "max-commentator:bg";
+  const ATTACHMENTS_MARKER = "__ATTACHMENTS__:";
+  const BG_SCHEMES = [
+    { id: "ocean", label: "Океан", start: "#194163", end: "#275884" },
+    { id: "violet", label: "Виолет", start: "#32244f", end: "#5a3d8f" },
+    { id: "sunset", label: "Сансет", start: "#5c2e3f", end: "#b05a5f" },
+    { id: "forest", label: "Форест", start: "#1f4738", end: "#2e7060" },
+    { id: "graphite", label: "Графит", start: "#1d212a", end: "#3b4657" },
+  ];
   const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
   function safeParse(json, fallback) {
@@ -89,7 +110,7 @@
   }
 
   function parsePostIdFromStartParam(value) {
-    // Возможные варианты payload: "post_123", "post=123", "123"
+    // Форматы: post_123 | post=123 | ch_<channel>_p_mid_xxx | 123
     if (!value) return null;
     const decoded = decodeURIComponent(String(value));
     if (decoded.includes("post=")) {
@@ -97,6 +118,13 @@
     }
     if (decoded.startsWith("post_")) {
       return decoded.slice(5) || null;
+    }
+    if (decoded.startsWith("ch_")) {
+      const idx = decoded.indexOf("_p_");
+      if (idx !== -1) {
+        const rawPost = decoded.slice(idx + 3).split("_c_")[0];
+        if (rawPost) return rawPost.replace(/_/g, ".");
+      }
     }
     return decoded;
   }
@@ -149,6 +177,38 @@
     }
   }
 
+  function applyTheme() {
+    const root = document.documentElement;
+    root.classList.remove("theme-light", "theme-dark");
+    if (state.themeMode === "light") {
+      root.classList.add("theme-light");
+    } else if (state.themeMode === "dark") {
+      root.classList.add("theme-dark");
+    }
+  }
+
+  function applyBackgroundScheme() {
+    const scheme = BG_SCHEMES.find((item) => item.id === state.bgScheme) || BG_SCHEMES[0];
+    document.documentElement.style.setProperty("--chat-step-1", scheme.start);
+    document.documentElement.style.setProperty("--chat-step-2", scheme.end);
+  }
+
+  function loadVisualSettings() {
+    const storedTheme = localStorage.getItem(THEME_KEY);
+    if (storedTheme && ["light", "dark", "system"].includes(storedTheme)) {
+      state.themeMode = storedTheme;
+    }
+    const storedBg = localStorage.getItem(BG_KEY);
+    if (storedBg && BG_SCHEMES.some((item) => item.id === storedBg)) {
+      state.bgScheme = storedBg;
+    }
+  }
+
+  function saveVisualSettings() {
+    localStorage.setItem(THEME_KEY, state.themeMode);
+    localStorage.setItem(BG_KEY, state.bgScheme);
+  }
+
   function isAuthorizedUser() {
     return Boolean(state.user.id && state.user.id !== "guest");
   }
@@ -162,7 +222,25 @@
     normalized.reactions = normalized.reactions && typeof normalized.reactions === "object" ? normalized.reactions : {};
     normalized.reactedBy = normalized.reactedBy && typeof normalized.reactedBy === "object" ? normalized.reactedBy : {};
     normalized.replyTo = normalized.replyTo || null;
+    if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
+      normalized.attachments = [];
+    }
     return normalized;
+  }
+
+  function parseCommentTextAndAttachments(rawText) {
+    const text = String(rawText || "");
+    if (!text.includes(ATTACHMENTS_MARKER)) return { text, attachments: [] };
+    const markerIndex = text.indexOf(ATTACHMENTS_MARKER);
+    const mainText = text.slice(0, markerIndex).trimEnd();
+    const payload = text.slice(markerIndex + ATTACHMENTS_MARKER.length);
+    try {
+      const attachments = JSON.parse(payload);
+      if (Array.isArray(attachments)) {
+        return { text: mainText, attachments };
+      }
+    } catch {}
+    return { text, attachments: [] };
   }
 
   function getInitials(name) {
@@ -249,11 +327,17 @@
       const data = await resp.json();
       if (!resp.ok || !data.ok) return null;
       return data.items.map((x) => ({
+        ...(() => {
+          const parsed = parseCommentTextAndAttachments(x.text);
+          return {
+            text: parsed.text,
+            attachments: parsed.attachments,
+          };
+        })(),
         id: String(x.id),
         postId: x.post_id,
         authorId: x.author_id,
         authorName: x.author_name,
-        text: x.text,
         createdAt: x.created_at,
       })).map(normalizeComment);
     } catch {
@@ -261,9 +345,12 @@
     }
   }
 
-  async function apiCreateComment(text) {
+  async function apiCreateComment(text, attachments = []) {
     if (!state.apiBase || !isAuthorizedUser()) return null;
     try {
+      const payloadText = attachments.length
+        ? `${text}\n${ATTACHMENTS_MARKER}${JSON.stringify(attachments)}`
+        : text;
       const resp = await fetch(`${state.apiBase}/api/comments`, {
         method: "POST",
         headers: apiHeaders(),
@@ -271,18 +358,24 @@
           post_id: state.postId,
           author_id: state.user.id,
           author_name: state.user.name,
-          text,
+          text: payloadText,
         }),
       });
       const data = await resp.json();
       if (!resp.ok || !data.ok) return null;
       const x = data.item;
       return {
+        ...(() => {
+          const parsed = parseCommentTextAndAttachments(x.text);
+          return {
+            text: parsed.text,
+            attachments: parsed.attachments,
+          };
+        })(),
         id: String(x.id),
         postId: x.post_id,
         authorId: x.author_id,
         authorName: x.author_name,
-        text: x.text,
         createdAt: x.created_at,
       };
     } catch {
@@ -365,6 +458,20 @@
       node.querySelector(".bubble__author").textContent = item.authorName || "Пользователь";
       node.querySelector(".bubble__time").textContent = formatTime(item.createdAt);
       node.querySelector(".bubble__text").textContent = item.text;
+      if (item.attachments?.length) {
+        const attachmentsWrap = document.createElement("div");
+        attachmentsWrap.className = "bubble__attachments";
+        for (const file of item.attachments) {
+          const chip = document.createElement("a");
+          chip.className = "attachChip";
+          chip.textContent = `📎 ${file.name || "файл"}`;
+          chip.href = file.url || "#";
+          chip.target = "_blank";
+          chip.rel = "noopener noreferrer";
+          attachmentsWrap.appendChild(chip);
+        }
+        node.querySelector(".bubble__text").after(attachmentsWrap);
+      }
       node.classList.toggle("is-selected", !!item.selected);
 
       const reactionsWrap = node.querySelector(".bubble__reactions");
@@ -445,6 +552,19 @@
     node.style.overflowY = node.scrollHeight > max ? "auto" : "hidden";
   }
 
+  function renderAttachmentsBar() {
+    el.attachmentsBar.innerHTML = "";
+    el.attachmentsBar.hidden = !state.attachments.length;
+    for (const item of state.attachments) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "attachDraftChip";
+      chip.textContent = `📎 ${item.name}`;
+      chip.dataset.id = item.id;
+      el.attachmentsBar.appendChild(chip);
+    }
+  }
+
   async function addComment(text) {
     if (!isAuthorizedUser()) {
       alert("Нужно открыть комментарии внутри MAX под своим аккаунтом.");
@@ -461,8 +581,13 @@
       reactions: {},
       reactedBy: {},
     };
-    const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN));
-    const remoteItem = remoteItemRaw ? normalizeComment({ ...remoteItemRaw, replyTo: state.replyTo }) : null;
+    const preparedAttachments = state.attachments.map((item) => ({
+      name: item.name,
+      url: item.url,
+      type: item.type,
+    }));
+    const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN), preparedAttachments);
+    const remoteItem = remoteItemRaw ? normalizeComment({ ...remoteItemRaw, replyTo: state.replyTo, attachments: preparedAttachments }) : null;
     if (remoteItem) {
       const fresh = await apiListComments();
       state.comments = fresh || [remoteItem, ...state.comments];
@@ -474,7 +599,9 @@
       return;
     }
     state.replyTo = null;
+    state.attachments = [];
     syncReplyPreview();
+    renderAttachmentsBar();
     saveComments();
     render();
     scrollToBottom();
@@ -522,6 +649,62 @@
       el.searchPanel.hidden = true;
       render();
       syncScrollDownButton();
+    });
+    el.settingsBtn.addEventListener("click", () => {
+      el.settingsModal.hidden = false;
+    });
+    el.settingsCloseBtn.addEventListener("click", () => {
+      el.settingsModal.hidden = true;
+    });
+    el.settingsModal.addEventListener("click", (e) => {
+      if (e.target === el.settingsModal) el.settingsModal.hidden = true;
+    });
+    document.querySelectorAll("[data-theme]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.themeMode = btn.dataset.theme;
+        applyTheme();
+        saveVisualSettings();
+      });
+    });
+    el.paletteGrid.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-bg]");
+      if (!target) return;
+      state.bgScheme = target.dataset.bg;
+      applyBackgroundScheme();
+      saveVisualSettings();
+    });
+    el.openBotBtn.addEventListener("click", () => {
+      const botUrl = "https://max.ru/id911114411208_3_bot";
+      const webApp = getWebApp();
+      if (webApp && typeof webApp.openLink === "function") {
+        webApp.openLink(botUrl);
+        return;
+      }
+      window.open(botUrl, "_blank", "noopener");
+    });
+    el.attachBtn.addEventListener("click", () => {
+      el.fileInput.click();
+    });
+    el.fileInput.addEventListener("change", async () => {
+      const files = Array.from(el.fileInput.files || []).slice(0, 6);
+      const mapped = await Promise.all(files.map(async (file) => {
+        const blobUrl = URL.createObjectURL(file);
+        return {
+          id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          url: blobUrl,
+        };
+      }));
+      state.attachments = mapped;
+      renderAttachmentsBar();
+    });
+    el.attachmentsBar.addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-id]");
+      if (!chip) return;
+      const id = chip.dataset.id;
+      state.attachments = state.attachments.filter((item) => item.id !== id);
+      renderAttachmentsBar();
     });
     el.replyCancelBtn.addEventListener("click", () => {
       state.replyTo = null;
@@ -643,13 +826,21 @@
 
   function boot() {
     setThemeFromMax();
+    loadVisualSettings();
+    applyTheme();
+    applyBackgroundScheme();
     state.apiBase = getApiBase() || window.location.origin;
     state.postId = resolvePostId();
     el.postInfo.textContent = `Пост: ${state.postId}`;
     if (!isAuthorizedUser()) {
-      el.commentInput.placeholder = "Откройте мини-приложение из MAX";
-      el.commentInput.disabled = true;
-      el.sendBtn.disabled = true;
+      setTimeout(() => {
+        setThemeFromMax();
+        if (!isAuthorizedUser()) {
+          el.commentInput.placeholder = "Откройте мини-приложение из MAX";
+          el.commentInput.disabled = true;
+          el.sendBtn.disabled = true;
+        }
+      }, 1200);
     }
     loadComments();
     el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
@@ -659,6 +850,9 @@
     syncReplyPreview();
     setupEvents();
     renderContextReactions();
+    el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => (
+      `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`
+    )).join("");
     render();
     syncScrollDownButton();
     if (state.apiBase) {
