@@ -18,6 +18,7 @@
     themeMode: "system",
     bgScheme: "ocean",
     attachments: [],
+    postLink: "",
   };
 
   const el = {
@@ -157,6 +158,13 @@
     return "default-post";
   }
 
+  function resolvePostLink(postId) {
+    if (!postId || postId === "default-post") return "";
+    const explicit = new URLSearchParams(window.location.search).get("post_url");
+    if (explicit) return explicit;
+    return `https://max.ru/?message_id=${encodeURIComponent(postId)}`;
+  }
+
   function setThemeFromMax() {
     const webApp = getWebApp();
     if (!webApp) return;
@@ -179,6 +187,13 @@
     }
   }
 
+  function syncAuthUiState() {
+    const authorized = isAuthorizedUser();
+    el.commentInput.disabled = !authorized;
+    el.sendBtn.disabled = !authorized;
+    el.commentInput.placeholder = authorized ? "Сообщение" : "Откройте мини-приложение из MAX";
+  }
+
   function applyTheme() {
     const root = document.documentElement;
     root.classList.remove("theme-light", "theme-dark");
@@ -193,6 +208,8 @@
     const scheme = BG_SCHEMES.find((item) => item.id === state.bgScheme) || BG_SCHEMES[0];
     document.documentElement.style.setProperty("--chat-step-1", scheme.start);
     document.documentElement.style.setProperty("--chat-step-2", scheme.end);
+    document.documentElement.style.setProperty("--send-bg", scheme.end);
+    document.documentElement.style.setProperty("--send-border", scheme.start);
   }
 
   function loadVisualSettings() {
@@ -833,17 +850,21 @@
     applyBackgroundScheme();
     state.apiBase = getApiBase() || window.location.origin;
     state.postId = resolvePostId();
-    el.postInfo.textContent = `Пост: ${state.postId}`;
-    if (!isAuthorizedUser()) {
-      setTimeout(() => {
-        setThemeFromMax();
-        if (!isAuthorizedUser()) {
-          el.commentInput.placeholder = "Откройте мини-приложение из MAX";
-          el.commentInput.disabled = true;
-          el.sendBtn.disabled = true;
-        }
-      }, 1200);
+    state.postLink = resolvePostLink(state.postId);
+    if (state.postLink) {
+      el.postInfo.innerHTML = `Пост: <a href="${state.postLink}" target="_blank" rel="noopener noreferrer">Открыть в MAX</a>`;
+    } else {
+      el.postInfo.textContent = "Пост: —";
     }
+    syncAuthUiState();
+    setTimeout(() => {
+      setThemeFromMax();
+      syncAuthUiState();
+    }, 1200);
+    setTimeout(() => {
+      setThemeFromMax();
+      syncAuthUiState();
+    }, 2500);
     loadComments();
     el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
     el.searchPanel.hidden = true;

@@ -60,6 +60,8 @@ body{
   --other-text: #1f2330;
   --mine-text: #0f3a5c;
   --border: rgba(20,20,30,0.16);
+  --surface: rgba(255,255,255,0.94);
+  --surface-2: rgba(248,250,255,0.96);
 }
 
 .icons{ position:absolute; width:0; height:0; overflow:hidden; }
@@ -127,6 +129,10 @@ body::before{
   color: rgba(198,236,255,0.95);
   text-align:center;
   font-weight: 500;
+}
+.chat__subtitle a{
+  color: inherit;
+  text-decoration: underline;
 }
 .chat__headerBlur{
   position:absolute;
@@ -271,10 +277,18 @@ body::before{
   min-width: 220px;
   max-width: min(560px, calc(100vw - 78px));
 }
+.theme-light .bubble{
+  background: rgba(255,255,255,0.94);
+  border-color: rgba(26,36,50,0.14);
+}
 .msg--mine .bubble{
   background: rgba(58,64,74,0.94);
   color: var(--mine-text);
   border-color: rgba(255,255,255,0.16);
+}
+.theme-light .msg--mine .bubble{
+  background: rgba(230,240,255,0.96);
+  border-color: rgba(26,36,50,0.12);
 }
 
 .bubble__meta{
@@ -410,6 +424,9 @@ body::before{
   width: min(638px, calc(100vw - 28px));
   margin: 0 auto;
 }
+.theme-light .composer{
+  background: rgba(255,255,255,0.92);
+}
 
 .composer__input{
   flex:1;
@@ -430,6 +447,7 @@ body::before{
 }
 .composer__input::placeholder{ color: rgba(255,255,255,0.45); }
 .theme-light .composer__input::placeholder{ color: rgba(40,50,66,0.45); }
+.theme-light .composer__input{ color: #1f2330; }
 
 .iconBtn{
   width: 36px;
@@ -461,12 +479,15 @@ body::before{
   width: 40px;
   height: 40px;
   border-radius: 30px;
-  border: 1px solid rgba(90,200,250,0.22);
-  background: rgba(90,200,250,0.20);
+  border: 1px solid var(--send-border, rgba(90,200,250,0.22));
+  background: var(--send-bg, rgba(90,200,250,0.20));
   color: #fff;
   display:flex;
   align-items:center;
   justify-content:center;
+}
+.sendBtn:disabled{
+  opacity: 0.5;
 }
 
 .composer__meta{
