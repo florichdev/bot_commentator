@@ -65,6 +65,22 @@
     return typeof raw === "string" ? raw : "";
   }
 
+  function parseInitDataRaw() {
+    const raw = getInitDataRaw();
+    if (!raw) return {};
+    const parsed = {};
+    const params = new URLSearchParams(raw);
+    for (const [k, v] of params.entries()) parsed[k] = v;
+    if (parsed.user && typeof parsed.user === "string") {
+      try {
+        parsed.user = JSON.parse(parsed.user);
+      } catch {
+        // keep as string
+      }
+    }
+    return parsed;
+  }
+
   function apiHeaders() {
     const headers = { "Content-Type": "application/json" };
     const initData = getInitDataRaw();
@@ -95,8 +111,12 @@
     const webApp = getWebApp();
     const fromInit = webApp?.initDataUnsafe?.start_param;
     if (fromInit) return parsePostIdFromStartParam(fromInit);
+    const fromInitDataRaw = parseInitDataRaw().start_param;
+    if (fromInitDataRaw) return parsePostIdFromStartParam(fromInitDataRaw);
 
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const fromHashStartapp = hash.get("startapp") || hash.get("WebAppStartParam");
+    if (fromHashStartapp) return parsePostIdFromStartParam(fromHashStartapp);
     const webAppDataRaw = hash.get("WebAppData");
     if (webAppDataRaw) {
       const appParams = new URLSearchParams(decodeURIComponent(webAppDataRaw));
@@ -119,6 +139,13 @@
     if (user) {
       state.user.id = String(user.id || "");
       state.user.name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.username || "Пользователь";
+      return;
+    }
+    const parsed = parseInitDataRaw();
+    const rawUser = parsed.user;
+    if (rawUser && typeof rawUser === "object") {
+      state.user.id = String(rawUser.id || "");
+      state.user.name = [rawUser.first_name, rawUser.last_name].filter(Boolean).join(" ").trim() || rawUser.username || "Пользователь";
     }
   }
 
@@ -475,6 +502,9 @@
     el.commentInput.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") void handleSend();
     });
+    el.commentInput.addEventListener("focus", () => {
+      setTimeout(() => scrollToBottom(false), 120);
+    });
     el.searchInput.addEventListener("input", () => {
       state.searchQuery = el.searchInput.value || "";
       render();
@@ -643,5 +673,19 @@
     }
   }
 
+  function setupViewportHeightSync() {
+    const apply = () => {
+      const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
+      document.documentElement.style.setProperty("--app-vh", `${vh}px`);
+    };
+    apply();
+    window.addEventListener("resize", apply);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", apply);
+      window.visualViewport.addEventListener("scroll", apply);
+    }
+  }
+
+  setupViewportHeightSync();
   boot();
 })();

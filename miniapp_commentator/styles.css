@@ -52,6 +52,7 @@ body{
   font-size: 16px;
   background: linear-gradient(28deg, var(--chat-step-1) 8.03%, var(--chat-step-2) 91.51%);
   position:relative;
+  overflow: hidden;
 }
 [hidden]{ display:none !important; }
 
@@ -61,7 +62,7 @@ body{
 /* Слой 2: дополнительные радиальные градиенты */
 body::after{
   content:"";
-  position:absolute;
+  position:fixed;
   inset:0;
   background:
     radial-gradient(45% 35% at 50% 35%, rgba(128, 210, 255, 0.08) 0%, rgba(0,0,0,0) 68%),
@@ -74,7 +75,7 @@ body::after{
 /* Слой 3: логотипы + иконки-паттерн */
 body::before{
   content:"";
-  position:absolute;
+  position:fixed;
   inset:0;
   pointer-events:none;
   z-index:-1;
@@ -82,14 +83,14 @@ body::before{
   background-repeat: repeat, repeat, repeat, repeat;
   background-size: 46px 46px, 68px 68px, 108px 108px, 84px 84px;
   background-position: 0 0, 28px 18px, 10px 34px, 54px 62px;
-  transform: rotate(-8deg) scale(1.12);
-  transform-origin: center;
+  transform: none;
   opacity: 0.26;
 }
 
 /* Мобильный вид всегда: chat занимает весь viewport */
 .chat{
-  height:100dvh;
+  height: calc(var(--app-vh, 1vh) * 100);
+  min-height: 100dvh;
   display:flex;
   flex-direction:column;
 }
@@ -200,7 +201,7 @@ body::before{
 .chat__body{
   flex:1;
   overflow:auto;
-  padding: 6px 10px calc(132px + env(safe-area-inset-bottom)); /* место под composer */
+  padding: 6px 10px calc(110px + env(safe-area-inset-bottom)); /* место под composer */
   -webkit-overflow-scrolling: touch;
 }
 
@@ -374,9 +375,7 @@ body::before{
 }
 
 .chat__composer{
-  position: fixed;
-  left:0;
-  right:0;
+  position: sticky;
   bottom:0;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   z-index: 20;
@@ -520,7 +519,7 @@ body::before{
 .scrollDownBtn{
   position: fixed;
   right: 16px;
-  bottom: calc(114px + env(safe-area-inset-bottom));
+  bottom: calc(96px + env(safe-area-inset-bottom));
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -630,7 +629,7 @@ body::before{
   .chat__body{
     padding-left: 8px;
     padding-right: 8px;
-    padding-bottom: calc(136px + env(safe-area-inset-bottom));
+    padding-bottom: calc(122px + env(safe-area-inset-bottom));
   }
   .bubble{
     min-width: 0;
@@ -644,5 +643,9 @@ body::before{
   .replyPreview,
   .composer__meta{
     width: calc(100vw - 16px);
+  }
+  body::before{
+    opacity: 0.16;
+    background-size: 34px 34px, 52px 52px, 82px 82px, 70px 70px;
   }
 }
