@@ -63,6 +63,9 @@ body{
   --surface: rgba(255,255,255,0.94);
   --surface-2: rgba(248,250,255,0.96);
 }
+.theme-light body{
+  color: #1f2330;
+}
 
 .icons{ position:absolute; width:0; height:0; overflow:hidden; }
 .icon{ width: 20px; height: 20px; display:block; }
@@ -182,6 +185,12 @@ body::before{
   color:#fff;
   font-size: 16px;
 }
+.theme-light .searchInput,
+.theme-light .searchCloseBtn{
+  color:#1f2330;
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(29,41,58,0.22);
+}
 .commentsCount{
   font-size: 14px;
   color: rgba(255,255,255,0.88);
@@ -190,6 +199,11 @@ body::before{
   background: rgba(20,32,51,0.72);
   border-radius: 999px;
   padding: 7px 14px;
+}
+.theme-light .commentsCount{
+  color:#1f2330;
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(29,41,58,0.22);
 }
 .pill{
   border:1px solid var(--border);
@@ -200,6 +214,11 @@ body::before{
   font-size: 13px;
   font-weight: 500;
   font-family: var(--font);
+}
+.theme-light .pill{
+  color:#1f2330;
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(29,41,58,0.22);
 }
 .pill--icon{
   min-width: 38px;
@@ -603,6 +622,11 @@ body::before{
   color: #fff;
   border-radius: 999px;
   padding: 9px 12px;
+}
+.theme-light .settingsChip{
+  color:#1f2330;
+  background: rgba(255,255,255,0.94);
+  border-color: rgba(29,41,58,0.24);
 }
 .settingsModal__palette{
   display:grid;

@@ -229,7 +229,8 @@
   }
 
   function isAuthorizedUser() {
-    return Boolean(state.user.id && state.user.id !== "guest");
+    if (state.user.id && state.user.id !== "guest") return true;
+    return Boolean(getInitDataRaw());
   }
 
   function storageKey(postId) {
@@ -765,11 +766,6 @@
         await navigator.clipboard.writeText(item.text || "");
       }
 
-      if (action === "copy-link") {
-        const link = `${window.location.origin}${window.location.pathname}?post_id=${encodeURIComponent(state.postId)}#comment-${encodeURIComponent(item.id)}`;
-        await navigator.clipboard.writeText(link);
-      }
-
       if (action === "report") {
         alert("Жалоба отправлена.");
       }
@@ -851,11 +847,7 @@
     state.apiBase = getApiBase() || window.location.origin;
     state.postId = resolvePostId();
     state.postLink = resolvePostLink(state.postId);
-    if (state.postLink) {
-      el.postInfo.innerHTML = `Пост: <a href="${state.postLink}" target="_blank" rel="noopener noreferrer">Открыть в MAX</a>`;
-    } else {
-      el.postInfo.textContent = "Пост: —";
-    }
+    el.postInfo.textContent = "";
     syncAuthUiState();
     setTimeout(() => {
       setThemeFromMax();
