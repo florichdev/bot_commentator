@@ -58,11 +58,11 @@
   const BG_KEY = "max-commentator:bg";
   const ATTACHMENTS_MARKER = "__ATTACHMENTS__:";
   const BG_SCHEMES = [
-    { id: "ocean", label: "Океан", start: "#194163", end: "#275884" },
-    { id: "violet", label: "Виолет", start: "#32244f", end: "#5a3d8f" },
-    { id: "sunset", label: "Сансет", start: "#5c2e3f", end: "#b05a5f" },
-    { id: "forest", label: "Форест", start: "#1f4738", end: "#2e7060" },
-    { id: "graphite", label: "Графит", start: "#1d212a", end: "#3b4657" },
+    { id: "ocean", label: "Океан", start: "#0f2f46", end: "#1b5f8a" },
+    { id: "violet", label: "Аметист", start: "#2c1f4d", end: "#6f49b6" },
+    { id: "sunset", label: "Закат", start: "#4a2331", end: "#d16a5a" },
+    { id: "forest", label: "Лагуна", start: "#123a35", end: "#2d8b78" },
+    { id: "graphite", label: "Ночной графит", start: "#151922", end: "#46546a" },
   ];
   const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
@@ -117,7 +117,9 @@
       return decoded.split("post=")[1].split(/[;&]/)[0] || null;
     }
     if (decoded.startsWith("post_")) {
-      return decoded.slice(5) || null;
+      const payload = decoded.slice(5) || "";
+      if (!payload) return null;
+      return payload.replace(/_/g, ".");
     }
     if (decoded.startsWith("ch_")) {
       const idx = decoded.indexOf("_p_");
