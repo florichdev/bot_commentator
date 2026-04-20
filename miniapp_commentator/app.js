@@ -186,6 +186,7 @@
   }
 
   function syncAuthUiState() {
+    if (!el.commentInput || !el.sendBtn) return;
     el.commentInput.disabled = false;
     el.sendBtn.disabled = false;
     el.commentInput.placeholder = "Сообщение";
@@ -541,11 +542,13 @@
   }
 
   function updateCounter() {
+    if (!el.commentInput || !el.charCounter) return;
     const len = el.commentInput.value.length;
     el.charCounter.textContent = `${len} / ${MAX_LEN}`;
   }
 
   function syncReplyPreview() {
+    if (!el.replyPreview || !el.replyPreviewAuthor || !el.replyPreviewText) return;
     if (!state.replyTo) {
       el.replyPreview.hidden = true;
       return;
@@ -581,6 +584,7 @@
   }
 
   function renderAttachmentsBar() {
+    if (!el.attachmentsBar) return;
     el.attachmentsBar.innerHTML = "";
     el.attachmentsBar.hidden = !state.attachments.length;
     for (const item of state.attachments) {
@@ -616,12 +620,9 @@
     if (remoteItem) {
       const fresh = await apiListComments();
       state.comments = fresh || [remoteItem, ...state.comments];
-    } else if (!state.apiBase) {
-      // Разрешаем локальный fallback только для локальной разработки.
-      state.comments.push(localItem);
     } else {
-      alert("Не удалось отправить комментарий. Проверьте подключение мини-приложения к API.");
-      return;
+      // Если API недоступен (например, GitHub Pages без backend), сохраняем локально.
+      state.comments.push(localItem);
     }
     state.replyTo = null;
     state.attachments = [];
@@ -646,6 +647,7 @@
   }
 
   function setupEvents() {
+    if (!el.commentInput || !el.sendBtn || !el.sortBtn || !el.clearBtn) return;
     el.commentInput.addEventListener("input", () => {
       updateCounter();
       syncComposerSize();
@@ -657,17 +659,17 @@
     el.commentInput.addEventListener("focus", () => {
       setTimeout(() => scrollToBottom(false), 120);
     });
-    el.searchInput.addEventListener("input", () => {
+    el.searchInput?.addEventListener("input", () => {
       state.searchQuery = el.searchInput.value || "";
       render();
       syncScrollDownButton();
     });
-    el.searchToggleBtn.addEventListener("click", () => {
+    el.searchToggleBtn?.addEventListener("click", () => {
       state.searchOpen = !state.searchOpen;
       el.searchPanel.hidden = !state.searchOpen;
       if (state.searchOpen) el.searchInput.focus();
     });
-    el.searchCloseBtn.addEventListener("click", () => {
+    el.searchCloseBtn?.addEventListener("click", () => {
       state.searchOpen = false;
       state.searchQuery = "";
       el.searchInput.value = "";
@@ -675,13 +677,13 @@
       render();
       syncScrollDownButton();
     });
-    el.settingsBtn.addEventListener("click", () => {
+    el.settingsBtn?.addEventListener("click", () => {
       el.settingsModal.hidden = false;
     });
-    el.settingsCloseBtn.addEventListener("click", () => {
+    el.settingsCloseBtn?.addEventListener("click", () => {
       el.settingsModal.hidden = true;
     });
-    el.settingsModal.addEventListener("click", (e) => {
+    el.settingsModal?.addEventListener("click", (e) => {
       if (e.target === el.settingsModal) el.settingsModal.hidden = true;
     });
     document.querySelectorAll("[data-theme]").forEach((btn) => {
@@ -691,14 +693,14 @@
         saveVisualSettings();
       });
     });
-    el.paletteGrid.addEventListener("click", (e) => {
+    el.paletteGrid?.addEventListener("click", (e) => {
       const target = e.target.closest("[data-bg]");
       if (!target) return;
       state.bgScheme = target.dataset.bg;
       applyBackgroundScheme();
       saveVisualSettings();
     });
-    el.openBotBtn.addEventListener("click", () => {
+    el.openBotBtn?.addEventListener("click", () => {
       const botUrl = "https://max.ru/id911114411208_3_bot";
       const webApp = getWebApp();
       if (webApp && typeof webApp.openLink === "function") {
@@ -707,10 +709,10 @@
       }
       window.open(botUrl, "_blank", "noopener");
     });
-    el.attachBtn.addEventListener("click", () => {
+    el.attachBtn?.addEventListener("click", () => {
       el.fileInput.click();
     });
-    el.fileInput.addEventListener("change", async () => {
+    el.fileInput?.addEventListener("change", async () => {
       const files = Array.from(el.fileInput.files || []).slice(0, 6);
       const mapped = await Promise.all(files.map(async (file) => {
         const blobUrl = URL.createObjectURL(file);
@@ -724,24 +726,24 @@
       state.attachments = mapped;
       renderAttachmentsBar();
     });
-    el.attachmentsBar.addEventListener("click", (e) => {
+    el.attachmentsBar?.addEventListener("click", (e) => {
       const chip = e.target.closest("[data-id]");
       if (!chip) return;
       const id = chip.dataset.id;
       state.attachments = state.attachments.filter((item) => item.id !== id);
       renderAttachmentsBar();
     });
-    el.replyCancelBtn.addEventListener("click", () => {
+    el.replyCancelBtn?.addEventListener("click", () => {
       state.replyTo = null;
       syncReplyPreview();
     });
-    el.chatBody.addEventListener("scroll", syncScrollDownButton);
-    el.scrollDownBtn.addEventListener("click", () => scrollToBottom(true));
-    el.contextMenuOverlay.addEventListener("click", closeContextMenu);
+    el.chatBody?.addEventListener("scroll", syncScrollDownButton);
+    el.scrollDownBtn?.addEventListener("click", () => scrollToBottom(true));
+    el.contextMenuOverlay?.addEventListener("click", closeContextMenu);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeContextMenu();
     });
-    el.contextMenu.addEventListener("click", async (e) => {
+    el.contextMenu?.addEventListener("click", async (e) => {
       const item = findCommentById(state.contextCommentId);
       if (!item) {
         closeContextMenu();
@@ -846,16 +848,18 @@
       syncAuthUiState();
     }, 2500);
     loadComments();
-    el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
-    el.searchPanel.hidden = true;
+    if (el.sortBtn) el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
+    if (el.searchPanel) el.searchPanel.hidden = true;
     updateCounter();
     syncComposerSize();
     syncReplyPreview();
     setupEvents();
     renderContextReactions();
-    el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => (
+    if (el.paletteGrid) {
+      el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => (
       `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`
-    )).join("");
+      )).join("");
+    }
     render();
     syncScrollDownButton();
     if (state.apiBase) {
