@@ -172,9 +172,39 @@
   }
 
   function parsePostIdFromStartParam(value) {
-    // Форматы: post_123 | post=123 | ch_<channel>_p_mid_xxx | 123
+    // Форматы: 
+    // post_123 | post=123 | ch_<channel>_p_mid_xxx | 123
+    // post_mid_xxx_api_base64encodedurl (новый формат)
     if (!value) return null;
     const decoded = decodeURIComponent(String(value));
+    
+    // Новый формат: post_mid_xxx_api_base64
+    if (decoded.startsWith("post_") && decoded.includes("_api_")) {
+      const parts = decoded.split("_api_");
+      const postPart = parts[0].slice(5); // убираем "post_"
+      if (postPart) {
+        const postId = postPart.replace(/_/g, ".");
+        
+        // Декодируем api_base если есть
+        if (parts[1]) {
+          try {
+            // Добавляем padding если нужно
+            let base64 = parts[1];
+            while (base64.length % 4 !== 0) {
+              base64 += '=';
+            }
+            const apiBase = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+            // Сохраняем api_base для использования
+            window.__STARTAPP_API_BASE__ = apiBase;
+          } catch (e) {
+            console.warn("Failed to decode api_base from startapp:", e);
+          }
+        }
+        
+        return postId;
+      }
+    }
+    
     if (decoded.includes("post=")) {
       return decoded.split("post=")[1].split(/[;&]/)[0] || null;
     }
@@ -451,10 +481,17 @@
   }
 
   function getApiBase() {
-    const fromWindow = window.__API_BASE_URL__ || "";
+    // Приоритет 1: из startapp payload
+    if (window.__STARTAPP_API_BASE__) {
+      return window.__STARTAPP_API_BASE__;
+    }
+    
+    // Приоритет 2: из query параметра
     const fromQuery = new URLSearchParams(window.location.search).get("api_base") || "";
     if (fromQuery) return fromQuery.replace(/\/$/, "");
-
+    
+    // Приоритет 3: из window.__API_BASE_URL__
+    const fromWindow = window.__API_BASE_URL__ || "";
     const fromWindowNormalized = String(fromWindow || "").replace(/\/$/, "");
     if (!fromWindowNormalized) return "";
 
