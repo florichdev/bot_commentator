@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_PREFIX = "max-commentator:v1:";
   const MAX_LEN = 4000;
+  const DEFAULT_API_BASE = "https://95.140.158.128.sslip.io";
 
   const state = {
     postId: null,
@@ -122,6 +123,41 @@
     }
   }
 
+  function parseWebAppDataFromSearch() {
+    const params = new URLSearchParams(window.location.search);
+    const webAppDataRaw = params.get("WebAppData");
+    if (!webAppDataRaw) return {};
+    try {
+      const parsedParams = new URLSearchParams(decodeURIComponent(webAppDataRaw));
+      const parsed = {};
+      for (const [k, v] of parsedParams.entries()) parsed[k] = v;
+      if (parsed.user && typeof parsed.user === "string") {
+        try {
+          parsed.user = JSON.parse(parsed.user);
+        } catch {
+          // keep raw user value
+        }
+      }
+      return parsed;
+    } catch {
+      return {};
+    }
+  }
+
+  function parseUserFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const rawUser = params.get("user") || hash.get("user");
+    if (!rawUser) return null;
+    try {
+      const decoded = decodeURIComponent(rawUser);
+      const parsed = JSON.parse(decoded);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
   function apiHeaders() {
     const headers = { "Content-Type": "application/json" };
     const initData = getInitDataRaw();
@@ -211,6 +247,21 @@
     if (hashUser && typeof hashUser === "object") {
       state.user.id = String(hashUser.id || "");
       state.user.name = [hashUser.first_name, hashUser.last_name].filter(Boolean).join(" ").trim() || hashUser.username || "Пользователь";
+      return;
+    }
+
+    const searchData = parseWebAppDataFromSearch();
+    const searchUser = searchData.user;
+    if (searchUser && typeof searchUser === "object") {
+      state.user.id = String(searchUser.id || "");
+      state.user.name = [searchUser.first_name, searchUser.last_name].filter(Boolean).join(" ").trim() || searchUser.username || "Пользователь";
+      return;
+    }
+
+    const urlUser = parseUserFromUrl();
+    if (urlUser && typeof urlUser === "object") {
+      state.user.id = String(urlUser.id || "");
+      state.user.name = [urlUser.first_name, urlUser.last_name].filter(Boolean).join(" ").trim() || urlUser.username || "Пользователь";
     }
   }
 
@@ -377,7 +428,16 @@
   function getApiBase() {
     const fromWindow = window.__API_BASE_URL__ || "";
     const fromQuery = new URLSearchParams(window.location.search).get("api_base") || "";
-    return (fromQuery || fromWindow).replace(/\/$/, "");
+    if (fromQuery) return fromQuery.replace(/\/$/, "");
+
+    const fromWindowNormalized = String(fromWindow || "").replace(/\/$/, "");
+    if (!fromWindowNormalized) return "";
+
+    const isGithubPages = /\.github\.io$/i.test(window.location.hostname || "");
+    const isSameOriginWindowApi = fromWindowNormalized === window.location.origin || fromWindowNormalized === `${window.location.origin}/api`;
+    if (isGithubPages && isSameOriginWindowApi) return DEFAULT_API_BASE;
+
+    return fromWindowNormalized || DEFAULT_API_BASE;
   }
 
   async function apiListComments() {
