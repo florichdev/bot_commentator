@@ -121,7 +121,7 @@ body::before{
   display:flex;
   gap:8px;
   padding: calc(10px + env(safe-area-inset-top)) 12px 6px;
-  margin-top: 10px;
+  margin-top: 5px;
   justify-content:center;
 }
 .chat__tools{
@@ -530,6 +530,7 @@ body::before{
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 .theme-light .replyPreview{
   border-color: rgba(30,54,79,0.24);
@@ -567,6 +568,14 @@ body::before{
   padding: 6px 10px;
   background: rgba(0,0,0,0.2);
   border-color: rgba(255,255,255,0.14);
+}
+.replyPreview--inBubble .replyPreview__text{
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .theme-light .replyPreview--inBubble{
   background: rgba(255,255,255,0.72);
@@ -725,6 +734,9 @@ body::before{
 }
 .comment-context-menu{
   min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
   border-radius: 24px;
   border: 1px solid rgba(255,255,255,0.16);
   background: rgba(24, 35, 55, 0.96);
@@ -749,7 +761,12 @@ body::before{
   border: 1px solid rgba(255,255,255,0.2);
   background: rgba(255,255,255,0.08);
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 .theme-light .reactionMenuBtn{
   border-color: rgba(30,54,79,0.24);

@@ -101,6 +101,27 @@
     return parsed;
   }
 
+  function parseWebAppDataFromHash() {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const webAppDataRaw = hash.get("WebAppData");
+    if (!webAppDataRaw) return {};
+    try {
+      const params = new URLSearchParams(decodeURIComponent(webAppDataRaw));
+      const parsed = {};
+      for (const [k, v] of params.entries()) parsed[k] = v;
+      if (parsed.user && typeof parsed.user === "string") {
+        try {
+          parsed.user = JSON.parse(parsed.user);
+        } catch {
+          // keep raw user value
+        }
+      }
+      return parsed;
+    } catch {
+      return {};
+    }
+  }
+
   function apiHeaders() {
     const headers = { "Content-Type": "application/json" };
     const initData = getInitDataRaw();
@@ -182,6 +203,14 @@
     if (rawUser && typeof rawUser === "object") {
       state.user.id = String(rawUser.id || "");
       state.user.name = [rawUser.first_name, rawUser.last_name].filter(Boolean).join(" ").trim() || rawUser.username || "Пользователь";
+      return;
+    }
+
+    const hashData = parseWebAppDataFromHash();
+    const hashUser = hashData.user;
+    if (hashUser && typeof hashUser === "object") {
+      state.user.id = String(hashUser.id || "");
+      state.user.name = [hashUser.first_name, hashUser.last_name].filter(Boolean).join(" ").trim() || hashUser.username || "Пользователь";
     }
   }
 
@@ -291,10 +320,12 @@
     state.contextCommentId = commentId;
     el.contextMenu.hidden = false;
     el.contextMenuOverlay.hidden = false;
-    const menuWidth = 240;
-    const menuHeight = 320;
-    const left = Math.min(window.innerWidth - menuWidth - 12, Math.max(12, x));
-    const top = Math.min(window.innerHeight - menuHeight - 12, Math.max(12, y));
+
+    const rect = el.contextMenu.getBoundingClientRect();
+    const menuWidth = rect.width || 240;
+    const menuHeight = rect.height || 320;
+    const left = Math.min(window.innerWidth - menuWidth - 12, Math.max(12, (window.innerWidth - menuWidth) / 2));
+    const top = Math.min(window.innerHeight - menuHeight - 12, Math.max(12, (window.innerHeight - menuHeight) / 2));
     el.contextMenu.style.left = `${left}px`;
     el.contextMenu.style.top = `${top}px`;
   }
