@@ -85,7 +85,7 @@
 
     <section class="chat__body" aria-label="Список комментариев">
       <ul id="commentsList" class="msgs"></ul>
-      <div id="emptyState" class="emptyCapsule">Пока нет комментариев. Будьте первым 👇</div>
+      <div id="emptyState" class="emptyCapsule">Пока нет комментариев</div>
     </section>
     <button id="scrollDownBtn" class="scrollDownBtn" type="button" aria-label="Прокрутить вниз">↓</button>
     <div id="contextMenuOverlay" class="contextMenuOverlay" hidden></div>
@@ -138,6 +138,15 @@
         <button id="settingsCloseBtn" class="settingsModal__close" type="button" aria-label="Закрыть">✕</button>
       </div>
       <div class="settingsModal__section">
+        <div class="settingsModal__label">Галерея</div>
+        <div class="settingsModal__gallery" id="gallerySlider">
+          <!-- Слайдер будет заполнен из папки img через JS -->
+        </div>
+      </div>
+      <div class="settingsModal__section">
+        <button id="openBotBtn" class="settingsConnectBtn" type="button">Подключить комментарии</button>
+      </div>
+      <div class="settingsModal__section">
         <div class="settingsModal__label">Тема</div>
         <div class="settingsModal__row">
           <button class="settingsChip" data-theme="light" type="button">Светлая</button>
@@ -148,9 +157,6 @@
       <div class="settingsModal__section">
         <div class="settingsModal__label">Градиент фона</div>
         <div class="settingsModal__palette" id="paletteGrid"></div>
-      </div>
-      <div class="settingsModal__section">
-        <button id="openBotBtn" class="settingsConnectBtn" type="button">Подключение</button>
       </div>
     </div>
   </div>
@@ -166,7 +172,6 @@
         <div class="bubble__reactions"></div>
         <div class="bubble__footer">
           <time class="bubble__time"></time>
-          <button class="bubble__action" data-action="reply-inline" type="button">Ответить</button>
         </div>
       </div>
     </li>

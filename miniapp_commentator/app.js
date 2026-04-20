@@ -17,7 +17,7 @@
     searchQuery: "",
     searchOpen: false,
     themeMode: "system",
-    bgScheme: "ocean",
+    bgScheme: "gradient1",
     attachments: [],
     postLink: "",
   };
@@ -53,16 +53,22 @@
     attachBtn: document.getElementById("attachBtn"),
     fileInput: document.getElementById("fileInput"),
     attachmentsBar: document.getElementById("attachmentsBar"),
+    gallerySlider: document.getElementById("gallerySlider"),
   };
   const THEME_KEY = "max-commentator:theme";
   const BG_KEY = "max-commentator:bg";
   const ATTACHMENTS_MARKER = "__ATTACHMENTS__:";
   const BG_SCHEMES = [
-    { id: "ocean", label: "Океан", start: "#0f2f46", end: "#1b5f8a" },
-    { id: "violet", label: "Аметист", start: "#2c1f4d", end: "#6f49b6" },
-    { id: "sunset", label: "Закат", start: "#4a2331", end: "#d16a5a" },
-    { id: "forest", label: "Лагуна", start: "#123a35", end: "#2d8b78" },
-    { id: "graphite", label: "Ночной графит", start: "#151922", end: "#46546a" },
+    { id: "gradient1", label: "Изумрудный", gradient: "linear-gradient(90deg, #0f5739,#3d8e66,#45c9a4,#46b5a9,#52c9eb)" },
+    { id: "gradient2", label: "Пурпурный закат", gradient: "linear-gradient(90deg, #8b24ab,#bb2c9d,#eb584d)" },
+    { id: "gradient3", label: "Космический", gradient: "linear-gradient(90deg, #47bdf0,#194dc8,#d632ec)" },
+    { id: "gradient4", label: "Океанская волна", gradient: "linear-gradient(90deg, #1b2c55,#3d85a9,#63cac8,#b8edff)" },
+    { id: "gradient5", label: "Ночное небо", gradient: "linear-gradient(90deg, #0f172a,#4338ca)" },
+    { id: "gradient6", label: "Тропический", gradient: "linear-gradient(90deg, #395492,#0099c0,#3dd5a8)" },
+    { id: "gradient7", label: "Галактика", gradient: "linear-gradient(45deg, #040d2c,#462a8b,#c505d6)" },
+    { id: "gradient8", label: "Кристальный", gradient: "linear-gradient(90deg, #025fa7,#1682d4,#00b0d0,#09d3f6,#42e3ff)" },
+    { id: "gradient9", label: "Лавандовый", gradient: "linear-gradient(90deg, #5b247a,#8e44ad,#c39bd3)" },
+    { id: "gradient10", label: "Огненный", gradient: "linear-gradient(90deg, #c0392b,#e74c3c,#f39c12,#f1c40f)" },
   ];
   const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
@@ -292,10 +298,21 @@
 
   function applyBackgroundScheme() {
     const scheme = BG_SCHEMES.find((item) => item.id === state.bgScheme) || BG_SCHEMES[0];
-    document.documentElement.style.setProperty("--chat-step-1", scheme.start);
-    document.documentElement.style.setProperty("--chat-step-2", scheme.end);
-    document.documentElement.style.setProperty("--send-bg", scheme.end);
-    document.documentElement.style.setProperty("--send-border", scheme.start);
+    if (scheme.gradient) {
+      document.documentElement.style.setProperty("--chat-gradient", scheme.gradient);
+      // Извлекаем первый и последний цвет из градиента для кнопки отправки
+      const colors = scheme.gradient.match(/#[0-9a-fA-F]{6}/g) || [];
+      if (colors.length >= 2) {
+        document.documentElement.style.setProperty("--send-bg", colors[colors.length - 1]);
+        document.documentElement.style.setProperty("--send-border", colors[0]);
+      }
+    } else {
+      // Fallback для старого формата
+      document.documentElement.style.setProperty("--chat-step-1", scheme.start);
+      document.documentElement.style.setProperty("--chat-step-2", scheme.end);
+      document.documentElement.style.setProperty("--send-bg", scheme.end);
+      document.documentElement.style.setProperty("--send-border", scheme.start);
+    }
   }
 
   function loadVisualSettings() {
@@ -789,7 +806,24 @@
       btn.addEventListener("click", () => {
         state.themeMode = btn.dataset.theme;
         applyTheme();
+        // Автоматически меняем фон под тему
+        if (state.themeMode === "light") {
+          state.bgScheme = "gradient4"; // Светлый градиент
+        } else if (state.themeMode === "dark") {
+          state.bgScheme = "gradient5"; // Темный градиент
+        }
+        applyBackgroundScheme();
         saveVisualSettings();
+        // Обновляем палитру
+        if (el.paletteGrid) {
+          el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => {
+            if (scheme.gradient) {
+              return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="background:${scheme.gradient}" aria-label="${scheme.label}"></button>`;
+            } else {
+              return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`;
+            }
+          }).join("");
+        }
       });
     });
     el.paletteGrid?.addEventListener("click", (e) => {
@@ -911,6 +945,17 @@
       syncScrollDownButton();
     });
 
+    // Проверяем права администратора перед показом кнопки очистки
+    async function checkAdminRights() {
+      // Здесь должна быть проверка прав администратора канала
+      // Пока скрываем кнопку для всех, кроме авторизованных пользователей
+      const isAdmin = false; // TODO: реализовать проверку прав администратора
+      if (el.clearBtn) {
+        el.clearBtn.style.display = isAdmin ? "inline-flex" : "none";
+      }
+    }
+    checkAdminRights();
+
     el.clearBtn.addEventListener("click", async () => {
       const ok = confirm("Очистить все комментарии для этого поста?");
       if (!ok) return;
@@ -954,10 +999,190 @@
     syncReplyPreview();
     setupEvents();
     renderContextReactions();
+    
+    // Инициализация галереи
+    if (el.gallerySlider) {
+      const galleryImages = [
+        { src: 'img/channel.png', alt: 'Канал', link: 'https://max.ru/id920358183590_biz' },
+        { src: 'img/downloader.png', alt: 'Скачиватель', link: 'https://max.ru/id911114411208_1_bot' },
+        { src: 'img/random.png', alt: 'Рандомайзер', link: 'https://max.ru/id911114411208_2_bot' },
+      ];
+      
+      let currentSlide = 0;
+      let autoSlideInterval = null;
+      
+      const galleryContainer = document.createElement('div');
+      galleryContainer.className = 'galleryContainer';
+      
+      const imagesHtml = galleryImages.map((img, idx) => 
+        `<a href="${img.link}" target="_blank" rel="noopener noreferrer" class="galleryLink" data-index="${idx}">
+          <img class="galleryItem ${idx === 0 ? 'active' : ''}" src="${img.src}" alt="${img.alt}" loading="lazy" onerror="this.style.display='none'" draggable="false">
+        </a>`
+      ).join('');
+      
+      const dotsHtml = `<div class="galleryDots">${galleryImages.map((_, idx) => 
+        `<button class="galleryDot ${idx === 0 ? 'active' : ''}" data-slide="${idx}" aria-label="Слайд ${idx + 1}"></button>`
+      ).join('')}</div>`;
+      
+      galleryContainer.innerHTML = imagesHtml;
+      el.gallerySlider.innerHTML = '';
+      el.gallerySlider.appendChild(galleryContainer);
+      el.gallerySlider.insertAdjacentHTML('beforeend', dotsHtml);
+      
+      // Функция переключения слайда
+      function goToSlide(index) {
+        const itemWidth = galleryContainer.querySelector('.galleryLink').offsetWidth + 10;
+        galleryContainer.scrollTo({ left: index * itemWidth, behavior: 'smooth' });
+        currentSlide = index;
+        document.querySelectorAll('.galleryDot').forEach((dot, idx) => {
+          dot.classList.toggle('active', idx === currentSlide);
+        });
+      }
+      
+      // Автосмена слайдов каждые 5 секунд
+      function startAutoSlide() {
+        stopAutoSlide();
+        autoSlideInterval = setInterval(() => {
+          const nextSlide = (currentSlide + 1) % galleryImages.length;
+          goToSlide(nextSlide);
+        }, 5000);
+      }
+      
+      function stopAutoSlide() {
+        if (autoSlideInterval) {
+          clearInterval(autoSlideInterval);
+          autoSlideInterval = null;
+        }
+      }
+      
+      // Запускаем автосмену
+      startAutoSlide();
+      
+      // Останавливаем автосмену при взаимодействии, возобновляем через 10 сек
+      let resumeTimeout = null;
+      function pauseAndResume() {
+        stopAutoSlide();
+        clearTimeout(resumeTimeout);
+        resumeTimeout = setTimeout(() => {
+          startAutoSlide();
+        }, 10000);
+      }
+      
+      // Обработчик скролла для переключения точек
+      galleryContainer.addEventListener('scroll', () => {
+        const scrollLeft = galleryContainer.scrollLeft;
+        const itemWidth = galleryContainer.querySelector('.galleryLink').offsetWidth + 10;
+        const newIndex = Math.round(scrollLeft / itemWidth);
+        
+        if (newIndex !== currentSlide) {
+          currentSlide = newIndex;
+          document.querySelectorAll('.galleryDot').forEach((dot, idx) => {
+            dot.classList.toggle('active', idx === currentSlide);
+          });
+        }
+      });
+      
+      // Клик по точкам
+      el.gallerySlider.addEventListener('click', (e) => {
+        const dot = e.target.closest('.galleryDot');
+        if (!dot) return;
+        const slideIndex = parseInt(dot.dataset.slide);
+        goToSlide(slideIndex);
+        pauseAndResume();
+      });
+      
+      // Drag-скролл мышкой
+      let isDragging = false;
+      let startX = 0;
+      let scrollLeft = 0;
+      let hasMoved = false;
+      
+      galleryContainer.addEventListener('mousedown', (e) => {
+        // Игнорируем правую кнопку мыши
+        if (e.button !== 0) return;
+        
+        isDragging = true;
+        hasMoved = false;
+        startX = e.pageX - galleryContainer.offsetLeft;
+        scrollLeft = galleryContainer.scrollLeft;
+        galleryContainer.style.cursor = 'grabbing';
+        galleryContainer.style.userSelect = 'none';
+        pauseAndResume();
+      });
+      
+      galleryContainer.addEventListener('mouseleave', () => {
+        if (isDragging) {
+          isDragging = false;
+          galleryContainer.style.cursor = 'grab';
+          galleryContainer.style.userSelect = '';
+        }
+      });
+      
+      galleryContainer.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          galleryContainer.style.cursor = 'grab';
+          galleryContainer.style.userSelect = '';
+        }
+      });
+      
+      galleryContainer.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        hasMoved = true;
+        const x = e.pageX - galleryContainer.offsetLeft;
+        const walk = (x - startX) * 1.5; // Множитель для скорости скролла
+        galleryContainer.scrollLeft = scrollLeft - walk;
+      });
+      
+      // Открытие ссылок через WebApp API если доступно
+      galleryContainer.addEventListener('click', (e) => {
+        // Если был drag, не открываем ссылку
+        if (hasMoved) {
+          e.preventDefault();
+          return;
+        }
+        
+        const link = e.target.closest('.galleryLink');
+        if (!link) return;
+        
+        e.preventDefault();
+        const url = link.href;
+        const webApp = getWebApp();
+        
+        if (webApp && typeof webApp.openLink === "function") {
+          webApp.openLink(url);
+        } else {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+        
+        pauseAndResume();
+      });
+      
+      // Останавливаем автосмену при закрытии модального окна
+      const settingsModal = document.getElementById('settingsModal');
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.attributeName === 'hidden') {
+            if (settingsModal.hidden) {
+              stopAutoSlide();
+            } else {
+              startAutoSlide();
+            }
+          }
+        });
+      });
+      observer.observe(settingsModal, { attributes: true });
+    }
+    
     if (el.paletteGrid) {
-      el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => (
-      `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`
-      )).join("");
+      el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => {
+        if (scheme.gradient) {
+          return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="background:${scheme.gradient}" aria-label="${scheme.label}"></button>`;
+        } else {
+          return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`;
+        }
+      }).join("");
     }
     render();
     syncScrollDownButton();
