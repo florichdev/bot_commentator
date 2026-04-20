@@ -866,7 +866,7 @@
     loadVisualSettings();
     applyTheme();
     applyBackgroundScheme();
-    state.apiBase = getApiBase() || window.location.origin;
+    state.apiBase = getApiBase();
     state.postId = resolvePostId();
     state.postLink = resolvePostLink(state.postId);
     syncAuthUiState();
