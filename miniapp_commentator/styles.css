@@ -1,25 +1,25 @@
 :root{
-  /* Основа и токены по референсу MAX mini-app */
+  /* Базовые токены в духе MAX UI */
   color-scheme: dark;
   --font: "Montserrat", -apple-system, BlinkMacSystemFont, system-ui, Segoe UI, Arial, sans-serif;
-  --text: #ececf1;
-  --text-muted: #8e8e93;
-  --surface: rgba(44,45,51,0.92);
-  --surface-2: rgba(58,64,74,0.92);
+  --text: #eef3f8;
+  --text-muted: #a6b7ca;
+  --surface: rgba(23, 33, 47, 0.86);
+  --surface-2: rgba(34, 47, 67, 0.9);
   --border: rgba(255,255,255,0.08);
   --shadow: 0 10px 30px rgba(0,0,0,0.45);
 
-  /* MAX chat background */
-  --chat-step-1: #194163;
-  --chat-step-2: #275884;
-  --chat-additional-1: rgba(90,200,250,0.26);
-  --chat-additional-2: rgba(90,200,250,0.10);
+  /* Фон чата */
+  --chat-step-1: #172f46;
+  --chat-step-2: #244e73;
+  --chat-additional-1: rgba(95, 189, 245, 0.22);
+  --chat-additional-2: rgba(95, 189, 245, 0.08);
   --chat-additional-3: rgba(0,0,0,0);
-  --chat-additional-4: rgba(126,154,255,0.18);
-  --chat-additional-5: rgba(126,154,255,0.08);
+  --chat-additional-4: rgba(123, 156, 255, 0.15);
+  --chat-additional-5: rgba(123, 156, 255, 0.05);
   --chat-additional-6: rgba(0,0,0,0);
-  --chat-pattern-grad-1: rgba(90,200,250,0.22);
-  --chat-pattern-grad-2: rgba(90,200,250,0.16);
+  --chat-pattern-grad-1: rgba(95, 189, 245, 0.2);
+  --chat-pattern-grad-2: rgba(95, 189, 245, 0.14);
   --chat-pattern-1: rgba(0,0,0,0);
   --chat-pattern-2: rgba(0,0,0,0);
   --chat-pattern-3: rgba(0,0,0,0);
@@ -30,16 +30,15 @@
   --pattern-doodles-url: url("./bg-pattern.svg");
 
   /* bubbles */
-  --mine-bg: linear-gradient(180deg, rgba(90,200,250,0.30) 0%, rgba(90,200,250,0.20) 100%);
-  --other-bg: #3a404a;
-  --mine-text: #c8eef8;
-  --other-text: #e8e8ed;
-  --time: rgba(110,196,232,0.95);
+  --mine-bg: linear-gradient(180deg, rgba(95, 189, 245, 0.28) 0%, rgba(95, 189, 245, 0.18) 100%);
+  --other-bg: #26374d;
+  --mine-text: #d9f2ff;
+  --other-text: #eef3f8;
+  --time: rgba(147, 214, 250, 0.95);
   --danger: #ff453a;
 
   /* blur gradients */
-  --header-blur: linear-gradient(to bottom, rgba(18,18,20,0.92) 0%, rgba(18,18,20,0.58) 45%, rgba(18,18,20,0.10) 90%, transparent 100%);
-  --footer-blur: linear-gradient(to top, rgba(18,18,20,0.92) 0%, rgba(18,18,20,0.58) 45%, rgba(18,18,20,0.10) 90%, transparent 100%);
+  --footer-blur: linear-gradient(to top, rgba(13,20,30,0.90) 0%, rgba(13,20,30,0.56) 45%, rgba(13,20,30,0.08) 90%, transparent 100%);
 }
 
 *{ box-sizing:border-box; }
@@ -56,12 +55,24 @@ body{
 }
 [hidden]{ display:none !important; }
 .theme-light{
-  --text: #1f2330;
-  --other-text: #1f2330;
+  color-scheme: light;
+  --text: #172130;
+  --text-muted: #61778f;
+  --other-text: #172130;
   --mine-text: #0f3a5c;
-  --border: rgba(20,20,30,0.16);
-  --surface: rgba(255,255,255,0.94);
-  --surface-2: rgba(248,250,255,0.96);
+  --border: rgba(30,54,79,0.16);
+  --surface: rgba(255,255,255,0.92);
+  --surface-2: rgba(245, 250, 255, 0.96);
+  --chat-step-1: #e8f2ff;
+  --chat-step-2: #f7fbff;
+  --chat-additional-1: rgba(127, 177, 255, 0.18);
+  --chat-additional-2: rgba(127, 177, 255, 0.08);
+  --chat-additional-4: rgba(131, 193, 255, 0.22);
+  --chat-additional-5: rgba(131, 193, 255, 0.10);
+  --mine-bg: linear-gradient(180deg, rgba(163, 215, 255, 0.5) 0%, rgba(163, 215, 255, 0.34) 100%);
+  --other-bg: rgba(255,255,255,0.92);
+  --time: rgba(72, 110, 147, 0.95);
+  --footer-blur: linear-gradient(to top, rgba(242,247,255,0.9) 0%, rgba(242,247,255,0.58) 45%, rgba(242,247,255,0.1) 90%, transparent 100%);
 }
 .theme-light body{
   color: #1f2330;
@@ -106,50 +117,10 @@ body::before{
   flex-direction:column;
 }
 
-.chat__header{
-  position:sticky;
-  top:0;
-  z-index:10;
-  padding: calc(10px + env(safe-area-inset-top)) 12px 8px;
-}
-.chat__headerInner{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-  position: relative;
-}
-.chat__title{ text-align:center; }
-.chat #shareBtn{ position:absolute; right:0; top:50%; transform:translateY(-50%); }
-.chat__titleLine{
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.1px;
-}
-.chat__subtitle{
-  margin-top:2px;
-  font-size: 12px;
-  color: rgba(198,236,255,0.95);
-  text-align:center;
-  font-weight: 500;
-}
-.chat__subtitle a{
-  color: inherit;
-  text-decoration: underline;
-}
-.chat__headerBlur{
-  position:absolute;
-  inset:0;
-  background: var(--header-blur);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  z-index:-1;
-}
-
 .chat__controls{
   display:flex;
   gap:8px;
-  padding: 0 12px 6px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 6px;
   justify-content:center;
 }
 .chat__tools{
@@ -167,8 +138,8 @@ body::before{
 }
 .searchInput{
   width:100%;
-  border:1px solid rgba(255,255,255,0.16);
-  background: rgba(20,32,51,0.72);
+  border:1px solid var(--border);
+  background: var(--surface);
   color:#fff;
   border-radius: 30px;
   font-family: var(--font);
@@ -180,8 +151,8 @@ body::before{
   width: 38px;
   height: 38px;
   border-radius: 19px;
-  border:1px solid rgba(255,255,255,0.16);
-  background: rgba(20,32,51,0.72);
+  border:1px solid var(--border);
+  background: var(--surface);
   color:#fff;
   font-size: 16px;
 }
@@ -195,8 +166,8 @@ body::before{
   font-size: 14px;
   color: rgba(255,255,255,0.88);
   text-align:center;
-  border:1px solid rgba(255,255,255,0.16);
-  background: rgba(20,32,51,0.72);
+  border:1px solid var(--border);
+  background: var(--surface);
   border-radius: 999px;
   padding: 7px 14px;
 }
@@ -207,7 +178,7 @@ body::before{
 }
 .pill{
   border:1px solid var(--border);
-  background: rgba(20,32,51,0.72);
+  background: var(--surface);
   color: rgba(255,255,255,0.92);
   border-radius: 999px;
   padding: 7px 11px;
@@ -287,7 +258,7 @@ body::before{
 }
 
 .bubble{
-  background: rgba(44,45,51,0.94);
+  background: var(--surface);
   color: var(--other-text);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 34px;
@@ -301,7 +272,7 @@ body::before{
   border-color: rgba(26,36,50,0.14);
 }
 .msg--mine .bubble{
-  background: rgba(58,64,74,0.94);
+  background: var(--surface-2);
   color: var(--mine-text);
   border-color: rgba(255,255,255,0.16);
 }
@@ -436,7 +407,7 @@ body::before{
   gap: 8px;
   align-items:center;
   border: 1px solid var(--border);
-  background: rgba(44,45,51,0.74);
+  background: var(--surface);
   border-radius: 38px;
   padding: 6px 8px;
   box-shadow: var(--shadow);

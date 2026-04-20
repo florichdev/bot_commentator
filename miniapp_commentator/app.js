@@ -22,13 +22,11 @@
   };
 
   const el = {
-    postInfo: document.getElementById("postInfo"),
     commentInput: document.getElementById("commentInput"),
     charCounter: document.getElementById("charCounter"),
     sendBtn: document.getElementById("sendBtn"),
     sortBtn: document.getElementById("sortBtn"),
     clearBtn: document.getElementById("clearBtn"),
-    shareBtn: document.getElementById("shareBtn"),
     searchToggleBtn: document.getElementById("searchToggleBtn"),
     searchPanel: document.getElementById("searchPanel"),
     searchInput: document.getElementById("searchInput"),
@@ -188,10 +186,9 @@
   }
 
   function syncAuthUiState() {
-    const authorized = isAuthorizedUser();
-    el.commentInput.disabled = !authorized;
-    el.sendBtn.disabled = !authorized;
-    el.commentInput.placeholder = authorized ? "Сообщение" : "Откройте мини-приложение из MAX";
+    el.commentInput.disabled = false;
+    el.sendBtn.disabled = false;
+    el.commentInput.placeholder = "Сообщение";
   }
 
   function applyTheme() {
@@ -229,8 +226,19 @@
   }
 
   function isAuthorizedUser() {
-    if (state.user.id && state.user.id !== "guest") return true;
-    return Boolean(getInitDataRaw());
+    return Boolean(state.user.id);
+  }
+
+  function ensureUserIdentity() {
+    if (state.user.id) return;
+    const key = `${STORAGE_PREFIX}guest-id`;
+    let guestId = localStorage.getItem(key);
+    if (!guestId) {
+      guestId = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      localStorage.setItem(key, guestId);
+    }
+    state.user.id = guestId;
+    state.user.name = "Гость";
   }
 
   function storageKey(postId) {
@@ -586,10 +594,7 @@
   }
 
   async function addComment(text) {
-    if (!isAuthorizedUser()) {
-      alert("Нужно открыть комментарии внутри MAX под своим аккаунтом.");
-      return;
-    }
+    ensureUserIdentity();
     const localItem = {
       id: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
       postId: state.postId,
@@ -820,34 +825,17 @@
       syncScrollDownButton();
     });
 
-    el.shareBtn.addEventListener("click", async () => {
-      const link = window.location.origin + window.location.pathname + `?post_id=${encodeURIComponent(state.postId)}`;
-      const webApp = getWebApp();
-      if (webApp && typeof webApp.shareMaxContent === "function") {
-        try {
-          webApp.shareMaxContent({
-            text: `Комментарии к посту ${state.postId}`,
-            url: link,
-          });
-          return;
-        } catch {
-          // fallback below
-        }
-      }
-      await navigator.clipboard.writeText(link);
-      alert("Ссылка скопирована");
-    });
   }
 
   function boot() {
     setThemeFromMax();
+    ensureUserIdentity();
     loadVisualSettings();
     applyTheme();
     applyBackgroundScheme();
     state.apiBase = getApiBase() || window.location.origin;
     state.postId = resolvePostId();
     state.postLink = resolvePostLink(state.postId);
-    el.postInfo.textContent = "";
     syncAuthUiState();
     setTimeout(() => {
       setThemeFromMax();
