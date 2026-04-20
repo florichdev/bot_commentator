@@ -272,6 +272,14 @@
     el.commentInput.placeholder = "Сообщение";
   }
 
+  function syncSortButton() {
+    if (!el.sortBtn) return;
+    const iconId = state.sortDesc ? "i_arrow_down" : "i_arrow_up";
+    const aria = state.sortDesc ? "Сортировка: сначала новые" : "Сортировка: сначала старые";
+    el.sortBtn.setAttribute("aria-label", aria);
+    el.sortBtn.innerHTML = `<svg class="icon"><use href="#${iconId}"></use></svg>`;
+  }
+
   function applyTheme() {
     const root = document.documentElement;
     root.classList.remove("theme-light", "theme-dark");
@@ -898,7 +906,7 @@
 
     el.sortBtn.addEventListener("click", () => {
       state.sortDesc = !state.sortDesc;
-      el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
+      syncSortButton();
       render();
       syncScrollDownButton();
     });
@@ -939,7 +947,7 @@
       syncAuthUiState();
     }, 2500);
     loadComments();
-    if (el.sortBtn) el.sortBtn.textContent = state.sortDesc ? "Сначала новые" : "Сначала старые";
+    syncSortButton();
     if (el.searchPanel) el.searchPanel.hidden = true;
     updateCounter();
     syncComposerSize();
