@@ -28,6 +28,10 @@
   --chat-pattern-6: rgba(0,0,0,0);
   --pattern-url: url("./bg-logo.webp");
   --pattern-doodles-url: url("./bg-pattern.svg");
+  
+  /* Новые паттерны от дизайнера */
+  --pattern-image: url("./blackpattern.png");
+  --pattern-opacity: 0.15;
 
   /* bubbles */
   --mine-bg: linear-gradient(180deg, rgba(95, 189, 245, 0.28) 0%, rgba(95, 189, 245, 0.18) 100%);
@@ -73,12 +77,13 @@ body{
   --other-bg: rgba(255,255,255,0.92);
   --time: rgba(72, 110, 147, 0.95);
   --footer-blur: linear-gradient(to top, rgba(242,247,255,0.9) 0%, rgba(242,247,255,0.58) 45%, rgba(242,247,255,0.1) 90%, transparent 100%);
+  
+  /* Белый паттерн для светлой темы */
+  --pattern-image: url("./whitepattern.png");
+  --pattern-opacity: 0.08;
 }
 .theme-light body{
   color: #1f2330;
-}
-.theme-light body::before{
-  opacity: 0.1;
 }
 .theme-light body::after{
   background:
@@ -103,19 +108,19 @@ body::after{
   z-index:-2;
 }
 
-/* Слой 3: логотипы + иконки-паттерн */
+/* Слой 3: паттерн от дизайнера */
 body::before{
   content:"";
   position:fixed;
   inset:0;
   pointer-events:none;
   z-index:-1;
-  background-image: var(--pattern-url), var(--pattern-url), var(--pattern-doodles-url), var(--pattern-doodles-url);
-  background-repeat: repeat, repeat, repeat, repeat;
-  background-size: 46px 46px, 68px 68px, 108px 108px, 84px 84px;
-  background-position: 0 0, 28px 18px, 10px 34px, 54px 62px;
-  transform: none;
-  opacity: 0.26;
+  background-image: var(--pattern-image);
+  background-repeat: repeat;
+  background-size: auto;
+  background-position: center;
+  opacity: var(--pattern-opacity);
+  mix-blend-mode: overlay;
 }
 
 /* Мобильный вид всегда: chat занимает весь viewport */
@@ -130,7 +135,7 @@ body::before{
 .chat__controls{
   display:flex;
   gap:8px;
-  padding: calc(10px + env(safe-area-inset-top)) 12px 6px;
+  padding: calc(8px + env(safe-area-inset-top)) 10px 6px;
   justify-content:center;
   align-items:center;
 }
@@ -458,7 +463,7 @@ body::before{
   border-radius: 38px;
   padding: 6px 8px;
   box-shadow: var(--shadow);
-  width: min(638px, calc(100vw - 28px));
+  width: min(580px, calc(100vw - 28px));
   margin: 0 auto;
 }
 .theme-light .composer{
@@ -707,13 +712,13 @@ body::before{
 .settingsModal__content{
   position: absolute;
   inset: 0;
-  background: rgba(22,26,36,0.98);
+  background: rgba(22,26,36,1);
   padding: calc(18px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   overflow: auto;
   animation: modalIn 0.24s ease;
 }
 .theme-light .settingsModal__content{
-  background: rgba(241,247,255,0.98);
+  background: rgba(241,247,255,1);
   color: var(--text);
 }
 .settingsModal__header{
@@ -1166,5 +1171,87 @@ body::before{
     border-radius: 16px;
     min-height: 100px;
     max-height: 160px;
+  }
+}
+
+
+/* Индикатор загрузки файлов */
+.uploadProgress {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  min-width: 280px;
+  max-width: 90vw;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.theme-light .uploadProgress {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(29, 41, 58, 0.22);
+}
+
+.uploadProgress__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.uploadProgress__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uploadProgress__item {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.theme-light .uploadProgress__item {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.uploadProgress__item--uploading {
+  color: #5fbdf5;
+  border-color: rgba(95, 189, 245, 0.3);
+  background: rgba(95, 189, 245, 0.1);
+}
+
+.uploadProgress__item--success {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.uploadProgress__item--error {
+  color: #ff453a;
+  border-color: rgba(255, 69, 58, 0.3);
+  background: rgba(255, 69, 58, 0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
   }
 }

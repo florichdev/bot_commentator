@@ -811,38 +811,123 @@
     }
   }
 
+  async function uploadFileToServer(file) {
+    if (!state.apiBase) {
+      console.error("API base URL not set");
+      return null;
+    }
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // Получаем initData для авторизации
+      let initData = getInitDataRaw();
+      if (!initData && window.__INIT_DATA_FROM_HASH__) {
+        initData = window.__INIT_DATA_FROM_HASH__;
+      }
+      
+      const resp = await fetch(`${state.apiBase}/api/upload`, {
+        method: "POST",
+        headers: {
+          "X-Max-Init-Data": initData || "",
+        },
+        body: formData,
+      });
+      
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        console.error("Upload failed:", errorData.error || resp.statusText);
+        return null;
+      }
+      
+      const data = await resp.json();
+      return data.url || null;
+    } catch (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+  }
+
+  function showUploadProgress(fileCount) {
+    // Создаем элемент прогресса если его нет
+    let progressEl = document.getElementById('uploadProgress');
+    if (!progressEl) {
+      progressEl = document.createElement('div');
+      progressEl.id = 'uploadProgress';
+      progressEl.className = 'uploadProgress';
+      progressEl.innerHTML = '<div class="uploadProgress__content"></div>';
+      document.body.appendChild(progressEl);
+    }
+    
+    const content = progressEl.querySelector('.uploadProgress__content');
+    content.innerHTML = `<div class="uploadProgress__title">Загрузка файлов...</div><div class="uploadProgress__list"></div>`;
+    progressEl.hidden = false;
+  }
+
+  function updateUploadProgress(index, status, message) {
+    const progressEl = document.getElementById('uploadProgress');
+    if (!progressEl) return;
+    
+    const list = progressEl.querySelector('.uploadProgress__list');
+    if (!list) return;
+    
+    let item = list.querySelector(`[data-index="${index}"]`);
+    if (!item) {
+      item = document.createElement('div');
+      item.className = 'uploadProgress__item';
+      item.dataset.index = index;
+      list.appendChild(item);
+    }
+    
+    const icons = {
+      uploading: '⏳',
+      success: '✅',
+      error: '❌'
+    };
+    
+    item.className = `uploadProgress__item uploadProgress__item--${status}`;
+    item.textContent = `${icons[status] || ''} ${message}`;
+  }
+
+  function hideUploadProgress() {
+    setTimeout(() => {
+      const progressEl = document.getElementById('uploadProgress');
+      if (progressEl) {
+        progressEl.hidden = true;
+      }
+    }, 2000); // Скрываем через 2 секунды
+  }
+
   async function addComment(text) {
     ensureUserIdentity();
-    const localItem = {
-      id: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
-      postId: state.postId,
-      authorId: state.user.id,
-      authorName: state.user.name,
-      text,
-      createdAt: new Date().toISOString(),
-      replyTo: state.replyTo,
-      reactions: {},
-      reactedBy: {},
-    };
+    
     const preparedAttachments = state.attachments.map((item) => ({
       name: item.name,
       url: item.url,
       type: item.type,
     }));
+    
+    // Сохраняем комментарий на сервере
     const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN), preparedAttachments);
-    const remoteItem = remoteItemRaw ? normalizeComment({ ...remoteItemRaw, replyTo: state.replyTo, attachments: preparedAttachments }) : null;
-    if (remoteItem) {
+    
+    if (remoteItemRaw) {
+      // Успешно сохранено на сервере - обновляем список с сервера
       const fresh = await apiListComments();
-      state.comments = fresh || [remoteItem, ...state.comments];
+      if (fresh) {
+        state.comments = fresh;
+      }
     } else {
-      // Если API недоступен (например, GitHub Pages без backend), сохраняем локально.
-      state.comments.push(localItem);
+      // Ошибка сохранения на сервере
+      console.error("Failed to save comment to server");
+      alert("Не удалось сохранить комментарий. Проверьте подключение.");
+      return;
     }
+    
     state.replyTo = null;
     state.attachments = [];
     syncReplyPreview();
     renderAttachmentsBar();
-    saveComments();
     render();
     scrollToBottom();
   }
@@ -945,17 +1030,62 @@
     });
     el.fileInput?.addEventListener("change", async () => {
       const files = Array.from(el.fileInput.files || []).slice(0, 6);
-      const mapped = await Promise.all(files.map(async (file) => {
-        const blobUrl = URL.createObjectURL(file);
+      
+      if (!files.length) return;
+      
+      // Показываем индикатор загрузки
+      showUploadProgress(files.length);
+      
+      const mapped = await Promise.all(files.map(async (file, index) => {
+        // Проверка размера файла
+        const maxSize = 10 * 1024 * 1024; // 10 MB
+        if (file.size > maxSize) {
+          console.error(`File ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          updateUploadProgress(index, 'error', `Файл слишком большой (макс 10 МБ)`);
+          return null;
+        }
+        
+        // Проверка типа файла
+        const allowedTypes = [
+          'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+          'video/mp4', 'video/webm',
+          'application/pdf', 'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain'
+        ];
+        
+        if (!allowedTypes.includes(file.type) && file.type !== 'application/octet-stream') {
+          console.error(`File ${file.name} has unsupported type: ${file.type}`);
+          updateUploadProgress(index, 'error', `Неподдерживаемый тип файла`);
+          return null;
+        }
+        
+        // Загружаем файл на сервер
+        updateUploadProgress(index, 'uploading', `Загрузка ${file.name}...`);
+        const uploadedUrl = await uploadFileToServer(file);
+        
+        if (!uploadedUrl) {
+          console.error("Failed to upload file:", file.name);
+          updateUploadProgress(index, 'error', `Ошибка загрузки ${file.name}`);
+          return null;
+        }
+        
+        updateUploadProgress(index, 'success', `Загружено: ${file.name}`);
+        
         return {
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: file.name,
           type: file.type || "application/octet-stream",
-          url: blobUrl,
+          url: uploadedUrl, // ✅ Публичный URL с сервера
         };
       }));
-      state.attachments = mapped;
+      
+      state.attachments = mapped.filter(Boolean); // Убираем null (неудачные загрузки)
       renderAttachmentsBar();
+      hideUploadProgress();
+      
+      // Очищаем input для возможности повторной загрузки тех же файлов
+      if (el.fileInput) el.fileInput.value = '';
     });
     el.attachmentsBar?.addEventListener("click", (e) => {
       const chip = e.target.closest("[data-id]");
@@ -1045,11 +1175,31 @@
 
     // Проверяем права администратора перед показом кнопки очистки
     async function checkAdminRights() {
-      // Здесь должна быть проверка прав администратора канала
-      // Пока скрываем кнопку для всех, кроме авторизованных пользователей
-      const isAdmin = false; // TODO: реализовать проверку прав администратора
-      if (el.clearBtn) {
-        el.clearBtn.style.display = isAdmin ? "inline-flex" : "none";
+      if (!state.apiBase || !isAuthorizedUser()) {
+        if (el.clearBtn) el.clearBtn.style.display = "none";
+        return;
+      }
+      
+      try {
+        // Проверяем права через API
+        const resp = await fetch(`${state.apiBase}/api/check_admin?post_id=${encodeURIComponent(state.postId)}`, {
+          method: "GET",
+          headers: apiHeaders(),
+        });
+        
+        if (resp.ok) {
+          const data = await resp.json();
+          const isAdmin = data.is_admin || false;
+          if (el.clearBtn) {
+            el.clearBtn.style.display = isAdmin ? "inline-flex" : "none";
+          }
+        } else {
+          // Если API не поддерживает проверку прав, скрываем кнопку
+          if (el.clearBtn) el.clearBtn.style.display = "none";
+        }
+      } catch (error) {
+        console.error("Failed to check admin rights:", error);
+        if (el.clearBtn) el.clearBtn.style.display = "none";
       }
     }
     checkAdminRights();
@@ -1288,7 +1438,6 @@
       apiListComments().then((items) => {
         if (items) {
           state.comments = items;
-          saveComments();
           render();
           syncScrollDownButton();
         }
