@@ -17,7 +17,7 @@
     searchQuery: "",
     searchOpen: false,
     themeMode: "system",
-    bgScheme: "gradient1",
+    bgScheme: "gradient5",
     attachments: [],
     postLink: "",
   };
@@ -380,9 +380,17 @@
   function applyTheme() {
     const root = document.documentElement;
     root.classList.remove("theme-light", "theme-dark");
-    if (state.themeMode === "light") {
+    
+    let actualTheme = state.themeMode;
+    
+    // Для системной темы определяем автоматически
+    if (state.themeMode === "system") {
+      actualTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    
+    if (actualTheme === "light") {
       root.classList.add("theme-light");
-    } else if (state.themeMode === "dark") {
+    } else if (actualTheme === "dark") {
       root.classList.add("theme-dark");
     }
   }
@@ -394,7 +402,7 @@
       // Извлекаем первый и последний цвет из градиента для кнопки отправки
       const colors = scheme.gradient.match(/#[0-9a-fA-F]{6}/g) || [];
       if (colors.length >= 2) {
-        document.documentElement.style.setProperty("--send-bg", colors[colors.length - 1]);
+        document.documentElement.style.setProperty("--send-bg", colors[0]);
         document.documentElement.style.setProperty("--send-border", colors[0]);
       }
     } else {
@@ -531,10 +539,20 @@
   }
 
   function loadComments() {
-    // local fallback happens in api wrappers
     const raw = localStorage.getItem(storageKey(state.postId));
     const parsed = safeParse(raw || "[]", []);
     state.comments = Array.isArray(parsed) ? parsed.map(normalizeComment) : [];
+  }
+
+  async function loadCommentsFromServer() {
+    if (!state.apiBase) return;
+    
+    const serverComments = await apiListComments();
+    if (serverComments && serverComments.length > 0) {
+      state.comments = serverComments;
+      saveComments();
+      render();
+    }
   }
 
   function saveComments() {
@@ -542,24 +560,46 @@
   }
 
   function getApiBase() {
+    console.log("[DEBUG] getApiBase called");
+    
     // Приоритет 1: из startapp payload
     if (window.__STARTAPP_API_BASE__) {
+      console.log("[DEBUG] Using API base from startapp:", window.__STARTAPP_API_BASE__);
       return window.__STARTAPP_API_BASE__;
     }
     
     // Приоритет 2: из query параметра
     const fromQuery = new URLSearchParams(window.location.search).get("api_base") || "";
-    if (fromQuery) return fromQuery.replace(/\/$/, "");
+    if (fromQuery) {
+      console.log("[DEBUG] Using API base from query:", fromQuery);
+      return fromQuery.replace(/\/$/, "");
+    }
     
     // Приоритет 3: из window.__API_BASE_URL__
     const fromWindow = window.__API_BASE_URL__ || "";
     const fromWindowNormalized = String(fromWindow || "").replace(/\/$/, "");
-    if (!fromWindowNormalized) return "";
+    console.log("[DEBUG] window.__API_BASE_URL__:", fromWindow);
+    console.log("[DEBUG] fromWindowNormalized:", fromWindowNormalized);
+    
+    if (!fromWindowNormalized) {
+      console.log("[DEBUG] No API base found, using DEFAULT_API_BASE:", DEFAULT_API_BASE);
+      return DEFAULT_API_BASE;
+    }
 
     const isGithubPages = /\.github\.io$/i.test(window.location.hostname || "");
     const isSameOriginWindowApi = fromWindowNormalized === window.location.origin || fromWindowNormalized === `${window.location.origin}/api`;
-    if (isGithubPages && isSameOriginWindowApi) return DEFAULT_API_BASE;
+    
+    console.log("[DEBUG] isGithubPages:", isGithubPages);
+    console.log("[DEBUG] isSameOriginWindowApi:", isSameOriginWindowApi);
+    console.log("[DEBUG] window.location.hostname:", window.location.hostname);
+    console.log("[DEBUG] window.location.origin:", window.location.origin);
+    
+    if (isGithubPages && isSameOriginWindowApi) {
+      console.log("[DEBUG] GitHub Pages detected, using DEFAULT_API_BASE:", DEFAULT_API_BASE);
+      return DEFAULT_API_BASE;
+    }
 
+    console.log("[DEBUG] Using fromWindowNormalized or DEFAULT_API_BASE:", fromWindowNormalized || DEFAULT_API_BASE);
     return fromWindowNormalized || DEFAULT_API_BASE;
   }
 
@@ -589,11 +629,34 @@
   }
 
   async function apiCreateComment(text, attachments = []) {
-    if (!state.apiBase || !isAuthorizedUser()) return null;
+    console.log("[DEBUG] apiCreateComment called with:", { text: text.substring(0, 50), attachments: attachments.length });
+    console.log("[DEBUG] state.apiBase:", state.apiBase);
+    console.log("[DEBUG] isAuthorizedUser():", isAuthorizedUser());
+    console.log("[DEBUG] state.user:", state.user);
+    
+    if (!state.apiBase) {
+      console.error("API base URL not set - cannot save comment to server");
+      return null;
+    }
+    
+    if (!isAuthorizedUser()) {
+      console.error("User not authorized - cannot save comment to server");
+      return null;
+    }
+    
     try {
       const payloadText = attachments.length
         ? `${text}\n${ATTACHMENTS_MARKER}${JSON.stringify(attachments)}`
         : text;
+        
+      console.log("[DEBUG] Sending request to:", `${state.apiBase}/api/comments`);
+      console.log("[DEBUG] Request payload:", {
+        post_id: state.postId,
+        author_id: state.user.id,
+        author_name: state.user.name,
+        text: payloadText.substring(0, 100)
+      });
+      
       const resp = await fetch(`${state.apiBase}/api/comments`, {
         method: "POST",
         headers: apiHeaders(),
@@ -604,8 +667,17 @@
           text: payloadText,
         }),
       });
+      
+      console.log("[DEBUG] Response status:", resp.status);
+      console.log("[DEBUG] Response ok:", resp.ok);
+      
       const data = await resp.json();
-      if (!resp.ok || !data.ok) return null;
+      console.log("[DEBUG] Response data:", data);
+      
+      if (!resp.ok || !data.ok) {
+        console.error("Server returned error:", data);
+        return null;
+      }
       const x = data.item;
       return {
         ...(() => {
@@ -900,6 +972,7 @@
   }
 
   async function addComment(text) {
+    console.log("[DEBUG] addComment called with text:", text.substring(0, 50));
     ensureUserIdentity();
     
     const preparedAttachments = state.attachments.map((item) => ({
@@ -908,20 +981,34 @@
       type: item.type,
     }));
     
-    // Сохраняем комментарий на сервере
+    console.log("[DEBUG] Prepared attachments:", preparedAttachments.length);
+    
     const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN), preparedAttachments);
     
     if (remoteItemRaw) {
-      // Успешно сохранено на сервере - обновляем список с сервера
+      console.log("[DEBUG] Comment saved to server successfully");
       const fresh = await apiListComments();
       if (fresh) {
         state.comments = fresh;
+        saveComments();
       }
     } else {
-      // Ошибка сохранения на сервере
-      console.error("Failed to save comment to server");
-      alert("Не удалось сохранить комментарий. Проверьте подключение.");
-      return;
+      console.log("[DEBUG] Failed to save comment to server, saving locally");
+      const localItem = {
+        id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        postId: state.postId,
+        authorId: state.user.id,
+        authorName: state.user.name,
+        text: text.slice(0, MAX_LEN),
+        attachments: preparedAttachments,
+        createdAt: new Date().toISOString(),
+        reactions: {},
+        reactedBy: {},
+        replyTo: state.replyTo,
+      };
+      state.comments.push(localItem);
+      saveComments();
+      console.warn("Комментарий сохранен локально, сервер недоступен");
     }
     
     state.replyTo = null;
@@ -991,9 +1078,13 @@
         applyTheme();
         // Автоматически меняем фон под тему
         if (state.themeMode === "light") {
-          state.bgScheme = "gradient4"; // Светлый градиент
+          state.bgScheme = "gradient6";
         } else if (state.themeMode === "dark") {
-          state.bgScheme = "gradient5"; // Темный градиент
+          state.bgScheme = "gradient5";
+        } else if (state.themeMode === "system") {
+          // Для системной темы определяем автоматически
+          const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          state.bgScheme = isDark ? "gradient5" : "gradient6";
         }
         applyBackgroundScheme();
         saveVisualSettings();
@@ -1240,6 +1331,7 @@
       syncAuthUiState();
     }, 2500);
     loadComments();
+    loadCommentsFromServer();
     syncSortButton();
     if (el.searchPanel) el.searchPanel.hidden = true;
     updateCounter();

@@ -7,7 +7,7 @@
   --surface: rgba(23, 33, 47, 0.86);
   --surface-2: rgba(34, 47, 67, 0.9);
   --border: rgba(255,255,255,0.08);
-  --shadow: 0 10px 30px rgba(0,0,0,0.45);
+  --shadow: 0 10px 20px rgba(0,0,0,0.45);
 
   /* Фон чата */
   --chat-step-1: #172f46;
@@ -117,9 +117,9 @@ body::before{
   z-index:-1;
   background-image: var(--pattern-image);
   background-repeat: repeat;
-  background-size: auto;
+  background-size: 384px 450px;
   background-position: center;
-  opacity: var(--pattern-opacity);
+  opacity: 0.35;
   mix-blend-mode: overlay;
 }
 
@@ -419,7 +419,7 @@ body::before{
 }
 
 .emptyCapsule{
-  margin: 18px auto 0;
+  margin: 4px auto 0;
   width: fit-content;
   max-width: 92%;
   padding: 8px 12px;
@@ -445,14 +445,7 @@ body::before{
   flex-direction: column;
   align-items: center;
 }
-.chat__composerBlur{
-  position:absolute;
-  inset:0;
-  background: var(--footer-blur);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index:-1;
-}
+
 
 .composer{
   display:flex;
@@ -465,6 +458,9 @@ body::before{
   box-shadow: var(--shadow);
   width: min(580px, calc(100vw - 28px));
   margin: 0 auto;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .theme-light .composer{
   background: rgba(255,255,255,0.92);
@@ -495,7 +491,7 @@ body::before{
   width: 36px;
   height: 36px;
   border-radius: 30px;
-  border: 1px solid rgba(255,255,255,0.10);
+  border: 2px solid rgba(255,255,255,0.10);
   background: rgba(0,0,0,0.12);
   color: rgba(255,255,255,0.9);
   display:flex;
@@ -509,7 +505,7 @@ body::before{
 .theme-light .iconBtn{
   border-color: var(--border);
   background: var(--surface);
-  color: var(--text);
+  color: #000;
 }
 .iconBtn--attach{
   opacity: 0.95;
@@ -530,9 +526,9 @@ body::before{
   width: 40px;
   height: 40px;
   border-radius: 30px;
-  border: 1px solid var(--send-border, rgba(90,200,250,0.22));
-  background: var(--send-bg, rgba(90,200,250,0.20));
-  color: #fff;
+  border: 2px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.10);
+  color: rgba(255,255,255,0.92);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -555,7 +551,9 @@ body::before{
   transform: scale(0.96);
 }
 .theme-light .sendBtn{
-  color: #0f3a5c;
+  color: #000;
+  border-color: var(--border);
+  background: var(--surface);
 }
 .sendBtn:disabled{
   opacity: 0.5;
@@ -568,13 +566,24 @@ body::before{
   gap: 12px;
   color: rgba(255,255,255,0.45);
   font-size: 11px;
-  width: min(638px, calc(100vw - 28px));
+  width: min(580px, calc(100vw - 28px));
   margin-left: auto;
   margin-right: auto;
   margin-bottom: 2px;
 }
 .theme-light .composer__meta{
   color: rgba(23,33,48,0.56);
+}
+
+#charCounter{
+  background: rgba(0,0,0,0.15);
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.theme-light #charCounter{
+  background: rgba(255,255,255,0.8);
+  border-color: rgba(0,0,0,0.1);
 }
 
 .replyPreview{
@@ -824,6 +833,7 @@ body::before{
   background: var(--border);
   pointer-events: auto;
   transition: opacity 0.3s ease, transform 0.2s ease;
+  border: 2px solid var(--border);
 }
 .galleryLink:hover .galleryItem{
   opacity: 0.95;
@@ -1105,11 +1115,11 @@ body::before{
     width: calc(100vw - 16px);
   }
   body::before{
-    opacity: 0.16;
-    background-size: 34px 34px, 52px 52px, 82px 82px, 70px 70px;
+    opacity: 0.35;
+    background-size: 384px 450px;
   }
   .theme-light body::before{
-    opacity: 0.06;
+    opacity: 0.25;
   }
   .theme-light .bubble{
     background: rgba(255,255,255,0.98);
@@ -1135,7 +1145,7 @@ body::before{
     max-height: 844px;
     border-radius: 0;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    box-shadow: none;
     position: relative;
   }
   /* Фон растягивается на весь экран */
@@ -1144,14 +1154,35 @@ body::before{
     position: fixed;
     inset: 0;
   }
+  /* Паттерны для ПК - увеличенный размер в 3 раза */
+  body::before{
+    background-size: 384px 450px;
+  }
+  /* Composer адаптируется под размер чата */
+  .composer{
+    width: min(440px, calc(100% - 28px));
+    max-width: calc(480px - 28px);
+  }
+  /* Адаптация chat__tools и searchPanel под размер чата */
+  .chat__tools{
+    padding: 0 14px 8px;
+  }
+  .searchPanel{
+    width: min(440px, calc(100% - 28px));
+    max-width: calc(480px - 28px);
+  }
+
   .settingsModal__gallery{
     width: 100%;
   }
   .galleryContainer{
-    width: 100%;
+    width: min(420px, 100%);
+    margin: 0 auto;
   }
   .galleryItem{
     max-width: 100%;
+    height: auto;
+    object-fit: contain;
   }
 }
 
