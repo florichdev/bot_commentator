@@ -166,7 +166,16 @@
 
   function apiHeaders() {
     const headers = { "Content-Type": "application/json" };
-    const initData = getInitDataRaw();
+    
+    // Приоритет 1: из WebApp
+    let initData = getInitDataRaw();
+    
+    // Приоритет 2: из hash (если WebApp не загрузился)
+    if (!initData && window.__INIT_DATA_FROM_HASH__) {
+      initData = window.__INIT_DATA_FROM_HASH__;
+      console.log("[DEBUG] Using initData from hash");
+    }
+    
     console.log("[DEBUG] apiHeaders - initData:", initData ? `${initData.substring(0, 50)}...` : "EMPTY");
     if (initData) headers["X-Max-Init-Data"] = initData;
     console.log("[DEBUG] apiHeaders - headers:", headers);
@@ -262,9 +271,62 @@
     const webApp = getWebApp();
     console.log("[DEBUG] setThemeFromMax called");
     console.log("[DEBUG] webApp:", webApp);
+    console.log("[DEBUG] window.location.hash:", window.location.hash);
+    console.log("[DEBUG] window.location.search:", window.location.search);
+    
+    // КРИТИЧНО: Сначала пробуем получить данные из hash, даже если webApp не загрузился
+    // MAX передает данные в #WebAppData когда миниапп открывается через deeplink
+    const hashData = parseWebAppDataFromHash();
+    console.log("[DEBUG] hashData:", hashData);
+    const hashUser = hashData.user;
+    if (hashUser && typeof hashUser === "object") {
+      console.log("[DEBUG] ✅ User from hash:", hashUser);
+      state.user.id = String(hashUser.id || "");
+      state.user.name = [hashUser.first_name, hashUser.last_name].filter(Boolean).join(" ").trim() || hashUser.username || "Пользователь";
+      // Сохраняем initData для API запросов
+      if (hashData.query_id || hashData.auth_date) {
+        window.__INIT_DATA_FROM_HASH__ = Object.entries(hashData)
+          .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`)
+          .join('&');
+        console.log("[DEBUG] Saved initData from hash for API");
+      }
+      // Продолжаем инициализацию webApp если он есть
+      if (webApp) {
+        if (typeof webApp.ready === "function") webApp.ready();
+        if (typeof webApp.expand === "function") webApp.expand();
+        if (typeof webApp.setBackgroundColor === "function") webApp.setBackgroundColor("#181818");
+        if (typeof webApp.setHeaderColor === "function") webApp.setHeaderColor("#181818");
+      }
+      console.log("[DEBUG] Final state.user:", state.user);
+      return;
+    }
     
     if (!webApp) {
-      console.warn("[DEBUG] No webApp found");
+      console.warn("[DEBUG] No webApp found and no data in hash");
+      // Пробуем другие источники
+      const searchData = parseWebAppDataFromSearch();
+      console.log("[DEBUG] searchData:", searchData);
+      const searchUser = searchData.user;
+      if (searchUser && typeof searchUser === "object") {
+        console.log("[DEBUG] ✅ User from search:", searchUser);
+        state.user.id = String(searchUser.id || "");
+        state.user.name = [searchUser.first_name, searchUser.last_name].filter(Boolean).join(" ").trim() || searchUser.username || "Пользователь";
+        console.log("[DEBUG] Final state.user:", state.user);
+        return;
+      }
+      
+      const urlUser = parseUserFromUrl();
+      console.log("[DEBUG] urlUser:", urlUser);
+      if (urlUser && typeof urlUser === "object") {
+        console.log("[DEBUG] ✅ User from URL:", urlUser);
+        state.user.id = String(urlUser.id || "");
+        state.user.name = [urlUser.first_name, urlUser.last_name].filter(Boolean).join(" ").trim() || urlUser.username || "Пользователь";
+        console.log("[DEBUG] Final state.user:", state.user);
+        return;
+      }
+      
+      console.log("[DEBUG] ❌ No user data found anywhere");
+      console.log("[DEBUG] Final state.user:", state.user);
       return;
     }
     
@@ -278,9 +340,10 @@
     
     const user = webApp.initDataUnsafe?.user;
     if (user) {
-      console.log("[DEBUG] User from initDataUnsafe:", user);
+      console.log("[DEBUG] ✅ User from initDataUnsafe:", user);
       state.user.id = String(user.id || "");
       state.user.name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.username || "Пользователь";
+      console.log("[DEBUG] Final state.user:", state.user);
       return;
     }
     
@@ -288,40 +351,14 @@
     console.log("[DEBUG] Parsed initDataRaw:", parsed);
     const rawUser = parsed.user;
     if (rawUser && typeof rawUser === "object") {
-      console.log("[DEBUG] User from parseInitDataRaw:", rawUser);
+      console.log("[DEBUG] ✅ User from parseInitDataRaw:", rawUser);
       state.user.id = String(rawUser.id || "");
       state.user.name = [rawUser.first_name, rawUser.last_name].filter(Boolean).join(" ").trim() || rawUser.username || "Пользователь";
+      console.log("[DEBUG] Final state.user:", state.user);
       return;
-    }
-
-    const hashData = parseWebAppDataFromHash();
-    console.log("[DEBUG] hashData:", hashData);
-    const hashUser = hashData.user;
-    if (hashUser && typeof hashUser === "object") {
-      console.log("[DEBUG] User from hash:", hashUser);
-      state.user.id = String(hashUser.id || "");
-      state.user.name = [hashUser.first_name, hashUser.last_name].filter(Boolean).join(" ").trim() || hashUser.username || "Пользователь";
-      return;
-    }
-
-    const searchData = parseWebAppDataFromSearch();
-    console.log("[DEBUG] searchData:", searchData);
-    const searchUser = searchData.user;
-    if (searchUser && typeof searchUser === "object") {
-      console.log("[DEBUG] User from search:", searchUser);
-      state.user.id = String(searchUser.id || "");
-      state.user.name = [searchUser.first_name, searchUser.last_name].filter(Boolean).join(" ").trim() || searchUser.username || "Пользователь";
-      return;
-    }
-
-    const urlUser = parseUserFromUrl();
-    console.log("[DEBUG] urlUser:", urlUser);
-    if (urlUser && typeof urlUser === "object") {
-      console.log("[DEBUG] User from URL:", urlUser);
-      state.user.id = String(urlUser.id || "");
-      state.user.name = [urlUser.first_name, urlUser.last_name].filter(Boolean).join(" ").trim() || urlUser.username || "Пользователь";
     }
     
+    console.log("[DEBUG] ❌ No user data found");
     console.log("[DEBUG] Final state.user:", state.user);
   }
 
