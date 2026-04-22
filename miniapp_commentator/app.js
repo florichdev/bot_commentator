@@ -847,6 +847,20 @@
             img.src = file.url || "#";
             img.alt = file.name || "изображение";
             img.loading = "lazy";
+            
+            // Обработка ошибки загрузки изображения
+            img.addEventListener("error", (e) => {
+              console.warn("Image failed to load, showing as link:", file.url);
+              // Заменяем на ссылку при ошибке загрузки
+              const chip = document.createElement("a");
+              chip.className = "attachChip";
+              chip.textContent = `🖼️ ${file.name || "изображение"}`;
+              chip.href = file.url || "#";
+              chip.target = "_blank";
+              chip.rel = "noopener noreferrer";
+              imgWrap.replaceWith(chip);
+            });
+            
             img.addEventListener("click", (e) => {
               e.preventDefault();
               // Открываем в галерее или новой вкладке

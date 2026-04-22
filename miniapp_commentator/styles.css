@@ -701,6 +701,11 @@ body::before{
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
 }
 .theme-light .attachDraftChip{
   border-color: rgba(30,54,79,0.2);
