@@ -17,7 +17,7 @@
     searchQuery: "",
     searchOpen: false,
     themeMode: "system",
-    bgScheme: "gradient5",
+    bgScheme: "pattern-only",
     attachments: [],
     postLink: "",
   };
@@ -59,6 +59,7 @@
   const BG_KEY = "max-commentator:bg";
   const ATTACHMENTS_MARKER = "__ATTACHMENTS__:";
   const BG_SCHEMES = [
+    { id: "pattern-only", label: "Только паттерн", gradient: null }, // Новая опция без градиента
     { id: "gradient1", label: "Изумрудный", gradient: "linear-gradient(90deg, #0f5739,#3d8e66,#45c9a4,#46b5a9,#52c9eb)" },
     { id: "gradient2", label: "Пурпурный закат", gradient: "linear-gradient(90deg, #8b24ab,#bb2c9d,#eb584d)" },
     { id: "gradient3", label: "Космический", gradient: "linear-gradient(90deg, #47bdf0,#194dc8,#d632ec)" },
@@ -397,8 +398,18 @@
 
   function applyBackgroundScheme() {
     const scheme = BG_SCHEMES.find((item) => item.id === state.bgScheme) || BG_SCHEMES[0];
+    
+    console.log("[DEBUG] Applying background scheme:", scheme);
+    
     if (scheme.gradient) {
-      document.documentElement.style.setProperty("--chat-gradient", scheme.gradient);
+      // Применяем градиент как фон
+      document.documentElement.style.setProperty("--chat-bg-base", scheme.gradient);
+      // Применяем дополнительные градиенты поверх паттерна
+      document.documentElement.style.setProperty("--overlay-gradients", 
+        `radial-gradient(45% 35% at 50% 35%, rgba(128, 210, 255, 0.08) 0%, rgba(0,0,0,0) 68%),
+         radial-gradient(57.57% 53.61% at 94.4% 14.38%, var(--chat-additional-1) 0%, var(--chat-additional-2) 48%, var(--chat-additional-3) 100%),
+         radial-gradient(140.37% 51.38% at 0% 80.05%, var(--chat-additional-4) 0%, var(--chat-additional-5) 52%, var(--chat-additional-6) 100%)`
+      );
       // Извлекаем первый и последний цвет из градиента для кнопки отправки
       const colors = scheme.gradient.match(/#[0-9a-fA-F]{6}/g) || [];
       if (colors.length >= 2) {
@@ -406,12 +417,24 @@
         document.documentElement.style.setProperty("--send-border", colors[0]);
       }
     } else {
-      // Fallback для старого формата
-      document.documentElement.style.setProperty("--chat-step-1", scheme.start);
-      document.documentElement.style.setProperty("--chat-step-2", scheme.end);
-      document.documentElement.style.setProperty("--send-bg", scheme.end);
-      document.documentElement.style.setProperty("--send-border", scheme.start);
+      // Без градиента - только паттерн
+      // Сбрасываем к базовым цветам в зависимости от темы
+      const isDark = document.documentElement.classList.contains('theme-dark') || 
+                     (!document.documentElement.classList.contains('theme-light') && 
+                      window.matchMedia("(prefers-color-scheme: dark)").matches);
+      
+      if (isDark) {
+        document.documentElement.style.setProperty("--chat-bg-base", "#0d141e");
+      } else {
+        document.documentElement.style.setProperty("--chat-bg-base", "#f5f9ff");
+      }
+      
+      // Убираем дополнительные градиенты
+      document.documentElement.style.setProperty("--overlay-gradients", "none");
     }
+    
+    console.log("[DEBUG] Applied --chat-bg-base:", getComputedStyle(document.documentElement).getPropertyValue('--chat-bg-base'));
+    console.log("[DEBUG] Applied --overlay-gradients:", getComputedStyle(document.documentElement).getPropertyValue('--overlay-gradients'));
   }
 
   function loadVisualSettings() {
@@ -1076,22 +1099,20 @@
       btn.addEventListener("click", () => {
         state.themeMode = btn.dataset.theme;
         applyTheme();
-        // Автоматически меняем фон под тему
-        if (state.themeMode === "light") {
-          state.bgScheme = "gradient6";
-        } else if (state.themeMode === "dark") {
-          state.bgScheme = "gradient5";
-        } else if (state.themeMode === "system") {
-          // Для системной темы определяем автоматически
-          const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          state.bgScheme = isDark ? "gradient5" : "gradient6";
-        }
+        // Не меняем автоматически градиент - пользователь выбирает сам
+        // Только обновляем применение текущей схемы под новую тему
         applyBackgroundScheme();
         saveVisualSettings();
         // Обновляем палитру
         if (el.paletteGrid) {
           el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => {
-            if (scheme.gradient) {
+            if (scheme.id === "pattern-only") {
+              const isDark = document.documentElement.classList.contains('theme-dark') || 
+                             (!document.documentElement.classList.contains('theme-light') && 
+                              window.matchMedia("(prefers-color-scheme: dark)").matches);
+              const patternBg = isDark ? '#0d141e' : '#f5f9ff';
+              return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="background:${patternBg}" aria-label="${scheme.label}"></button>`;
+            } else if (scheme.gradient) {
               return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="background:${scheme.gradient}" aria-label="${scheme.label}"></button>`;
             } else {
               return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`;
@@ -1102,8 +1123,10 @@
     });
     el.paletteGrid?.addEventListener("click", (e) => {
       const target = e.target.closest("[data-bg]");
+      console.log("[DEBUG] Palette clicked, target:", target);
       if (!target) return;
       state.bgScheme = target.dataset.bg;
+      console.log("[DEBUG] Selected bgScheme:", state.bgScheme);
       applyBackgroundScheme();
       saveVisualSettings();
     });
@@ -1517,7 +1540,14 @@
     
     if (el.paletteGrid) {
       el.paletteGrid.innerHTML = BG_SCHEMES.map((scheme) => {
-        if (scheme.gradient) {
+        if (scheme.id === "pattern-only") {
+          // Для "только паттерн" показываем текущий паттерн темы
+          const isDark = document.documentElement.classList.contains('theme-dark') || 
+                         (!document.documentElement.classList.contains('theme-light') && 
+                          window.matchMedia("(prefers-color-scheme: dark)").matches);
+          const patternBg = isDark ? '#0d141e' : '#f5f9ff';
+          return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="background:${patternBg}" aria-label="${scheme.label}"></button>`;
+        } else if (scheme.gradient) {
           return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="background:${scheme.gradient}" aria-label="${scheme.label}"></button>`;
         } else {
           return `<button type="button" class="paletteItem" data-bg="${scheme.id}" style="--g1:${scheme.start};--g2:${scheme.end}" aria-label="${scheme.label}"></button>`;

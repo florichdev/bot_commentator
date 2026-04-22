@@ -10,8 +10,10 @@
   --shadow: 0 10px 20px rgba(0,0,0,0.45);
 
   /* Фон чата */
+  --chat-bg-base: #0d141e; /* Базовый цвет без градиента */
   --chat-step-1: #172f46;
   --chat-step-2: #244e73;
+  --chat-gradient: none; /* По умолчанию без градиента */
   --chat-additional-1: rgba(95, 189, 245, 0.22);
   --chat-additional-2: rgba(95, 189, 245, 0.08);
   --chat-additional-3: rgba(0,0,0,0);
@@ -31,7 +33,10 @@
   
   /* Новые паттерны от дизайнера */
   --pattern-image: url("./blackpattern.png");
-  --pattern-opacity: 0.15;
+  --pattern-opacity: 0.65;
+  
+  /* Дополнительные градиенты (по умолчанию выключены) */
+  --overlay-gradients: none;
 
   /* bubbles */
   --mine-bg: linear-gradient(180deg, rgba(95, 189, 245, 0.28) 0%, rgba(95, 189, 245, 0.18) 100%);
@@ -53,7 +58,7 @@ body{
   font-family: var(--font);
   color: var(--text);
   font-size: 16px;
-  background: var(--chat-gradient, linear-gradient(28deg, var(--chat-step-1) 8.03%, var(--chat-step-2) 91.51%));
+  background: var(--chat-bg-base);
   position:relative;
   overflow: hidden;
 }
@@ -67,8 +72,10 @@ body{
   --border: rgba(30,54,79,0.16);
   --surface: rgba(255,255,255,0.92);
   --surface-2: rgba(245, 250, 255, 0.96);
+  --chat-bg-base: #f5f9ff; /* Базовый светлый цвет */
   --chat-step-1: #e8f2ff;
   --chat-step-2: #f7fbff;
+  --chat-gradient: none; /* По умолчанию без градиента */
   --chat-additional-1: rgba(127, 177, 255, 0.18);
   --chat-additional-2: rgba(127, 177, 255, 0.08);
   --chat-additional-4: rgba(131, 193, 255, 0.22);
@@ -80,32 +87,30 @@ body{
   
   /* Белый паттерн для светлой темы */
   --pattern-image: url("./whitepattern.png");
-  --pattern-opacity: 0.08;
+  --pattern-opacity: 0.5;
+  
+  /* Дополнительные градиенты (по умолчанию выключены) */
+  --overlay-gradients: none;
 }
 .theme-light body{
   color: #1f2330;
+  background: var(--chat-bg-base); /* Используем базовый цвет или градиент */
 }
 .theme-light body::after{
-  background:
-    radial-gradient(45% 35% at 50% 35%, rgba(128, 210, 255, 0.05) 0%, rgba(0,0,0,0) 70%),
-    radial-gradient(57.57% 53.61% at 94.4% 14.38%, rgba(131, 193, 255, 0.12) 0%, rgba(131, 193, 255, 0.04) 48%, rgba(0,0,0,0) 100%),
-    radial-gradient(140.37% 51.38% at 0% 80.05%, rgba(131, 193, 255, 0.1) 0%, rgba(131, 193, 255, 0.03) 52%, rgba(0,0,0,0) 100%);
+  background: var(--overlay-gradients); /* Используем переменную для градиентов */
 }
 
 .icons{ position:absolute; width:0; height:0; overflow:hidden; }
 .icon{ width: 20px; height: 20px; display:block; }
 .icon--send{ width: 18px; height: 18px; transform: none; }
-/* Слой 2: дополнительные радиальные градиенты */
+/* Слой 2: дополнительные градиенты поверх паттерна */
 body::after{
   content:"";
   position:fixed;
   inset:0;
-  background:
-    radial-gradient(45% 35% at 50% 35%, rgba(128, 210, 255, 0.08) 0%, rgba(0,0,0,0) 68%),
-    radial-gradient(57.57% 53.61% at 94.4% 14.38%, var(--chat-additional-1) 0%, var(--chat-additional-2) 48%, var(--chat-additional-3) 100%),
-    radial-gradient(140.37% 51.38% at 0% 80.05%, var(--chat-additional-4) 0%, var(--chat-additional-5) 52%, var(--chat-additional-6) 100%);
+  background: var(--overlay-gradients);
   pointer-events:none;
-  z-index:-2;
+  z-index:0; /* Поверх паттерна, но под контентом */
 }
 
 /* Слой 3: паттерн от дизайнера */
@@ -117,10 +122,9 @@ body::before{
   z-index:-1;
   background-image: var(--pattern-image);
   background-repeat: repeat;
-  background-size: 384px 450px;
+  background-size: 917px 512px; /* Уменьшено в 1.5 раза от 1376x768, пропорционально 5504x3072 */
   background-position: center;
-  opacity: 0.35;
-  mix-blend-mode: overlay;
+  opacity: var(--pattern-opacity);
 }
 
 /* Мобильный вид всегда: chat занимает весь viewport */
@@ -130,6 +134,8 @@ body::before{
   display:flex;
   flex-direction:column;
   border-radius: 0;
+  position: relative;
+  z-index: 1; /* Поверх градиентов и паттернов */
 }
 
 .chat__controls{
@@ -805,6 +811,7 @@ body::before{
   display: flex;
   gap: 10px;
   scroll-snap-type: x mandatory;
+  scroll-behavior: smooth; /* Плавная прокрутка */
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   cursor: grab;
@@ -822,6 +829,7 @@ body::before{
   max-width: 100%;
   text-decoration: none;
   scroll-snap-align: center;
+  scroll-snap-stop: always; /* Останавливается на каждом элементе */
 }
 .galleryItem{
   display: block;
@@ -832,7 +840,7 @@ body::before{
   object-fit: cover;
   background: var(--border);
   pointer-events: auto;
-  transition: opacity 0.3s ease, transform 0.2s ease;
+  transition: opacity 0.5s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Плавнее анимация */
   border: 2px solid var(--border);
 }
 .galleryLink:hover .galleryItem{
@@ -856,7 +864,7 @@ body::before{
   border: none;
   padding: 0;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Плавнее анимация точек */
 }
 .galleryDot.active{
   background: rgba(255,255,255,0.9);
@@ -891,6 +899,12 @@ body::before{
   width: 100%;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.paletteItem[data-bg="pattern-only"]{
+  border: 2px solid rgba(255,255,255,0.18);
+}
+.theme-light .paletteItem[data-bg="pattern-only"]{
+  border-color: rgba(29,41,58,0.24);
 }
 .paletteItem:hover{
   transform: scale(1.02);
@@ -1115,11 +1129,8 @@ body::before{
     width: calc(100vw - 16px);
   }
   body::before{
-    opacity: 0.35;
-    background-size: 384px 450px;
-  }
-  .theme-light body::before{
-    opacity: 0.25;
+    opacity: var(--pattern-opacity);
+    background-size: 733px 409px; /* Уменьшено в 1.5 раза для мобильных, пропорционально 5504x3072 */
   }
   .theme-light .bubble{
     background: rgba(255,255,255,0.98);
@@ -1154,9 +1165,9 @@ body::before{
     position: fixed;
     inset: 0;
   }
-  /* Паттерны для ПК - увеличенный размер в 3 раза */
+  /* Паттерны для ПК */
   body::before{
-    background-size: 384px 450px;
+    background-size: 917px 512px; /* Пропорционально 5504x3072 */
   }
   /* Composer адаптируется под размер чата */
   .composer{
