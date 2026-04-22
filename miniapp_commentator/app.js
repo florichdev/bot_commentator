@@ -10,6 +10,7 @@
     user: {
       id: "",
       name: "",
+      photo_url: null,
     },
     apiBase: "",
     replyTo: null,
@@ -296,6 +297,7 @@
       console.log("[DEBUG] ✅ User from hash:", hashUser);
       state.user.id = String(hashUser.id || "");
       state.user.name = [hashUser.first_name, hashUser.last_name].filter(Boolean).join(" ").trim() || hashUser.username || "Пользователь";
+      state.user.photo_url = hashUser.photo_url || null; // Сохраняем аватарку
       // Сохраняем initData для API запросов
       if (hashData.query_id || hashData.auth_date) {
         window.__INIT_DATA_FROM_HASH__ = Object.entries(hashData)
@@ -514,6 +516,20 @@
   function getInitials(name) {
     const parts = String(name || "Пользователь").trim().split(/\s+/).filter(Boolean).slice(0, 2);
     return parts.map((part) => part[0]).join("") || "П";
+  }
+
+  function setAvatar(avatarElement, authorId, authorName, photoUrl = null) {
+    // Если это мой комментарий, используем мою аватарку
+    const isMine = isAuthorizedUser() && authorId === state.user.id;
+    const userPhotoUrl = isMine ? state.user.photo_url : photoUrl;
+    
+    if (userPhotoUrl) {
+      // Используем фото профиля
+      avatarElement.innerHTML = `<img src="${userPhotoUrl}" alt="${authorName}" class="avatar-img" onerror="this.parentElement.textContent='${getInitials(authorName)}'">`;
+    } else {
+      // Используем инициалы
+      avatarElement.textContent = getInitials(authorName);
+    }
   }
 
   function findCommentById(id) {
@@ -804,7 +820,7 @@
       node.id = `comment-${item.id}`;
       const isMine = isAuthorizedUser() && item.authorId === state.user.id;
       node.classList.add(isMine ? "msg--mine" : "msg--other");
-      node.querySelector(".msg__avatar").textContent = getInitials(item.authorName);
+      setAvatar(node.querySelector(".msg__avatar"), item.authorId, item.authorName, item.photo_url);
       node.querySelector(".bubble__author").textContent = item.authorName || "Пользователь";
       node.querySelector(".bubble__time").textContent = formatTime(item.createdAt);
       node.querySelector(".bubble__text").textContent = item.text;
@@ -1064,7 +1080,9 @@
   }
 
   async function handleSend() {
+    console.log("[DEBUG] handleSend called");
     const text = el.commentInput.value.trim();
+    console.log("[DEBUG] text:", text);
     if (!text) return;
     if (text.length > MAX_LEN) {
       alert("Слишком длинный комментарий.");
@@ -1077,12 +1095,25 @@
   }
 
   function setupEvents() {
-    if (!el.commentInput || !el.sendBtn || !el.sortBtn || !el.clearBtn) return;
+    console.log("[DEBUG] setupEvents called");
+    console.log("[DEBUG] el.commentInput:", el.commentInput);
+    console.log("[DEBUG] el.sendBtn:", el.sendBtn);
+    console.log("[DEBUG] el.sortBtn:", el.sortBtn);
+    console.log("[DEBUG] el.clearBtn:", el.clearBtn);
+    
+    if (!el.commentInput || !el.sendBtn || !el.sortBtn || !el.clearBtn) {
+      console.error("[DEBUG] Some elements not found, skipping event setup");
+      return;
+    }
+    
     el.commentInput.addEventListener("input", () => {
       updateCounter();
       syncComposerSize();
     });
-    el.sendBtn.addEventListener("click", () => { void handleSend(); });
+    el.sendBtn.addEventListener("click", () => { 
+      console.log("[DEBUG] Send button clicked");
+      void handleSend(); 
+    });
     el.commentInput.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") void handleSend();
     });
@@ -1602,5 +1633,11 @@
   }
 
   setupViewportHeightSync();
-  boot();
+  
+  // Ждем загрузки DOM перед инициализацией
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
