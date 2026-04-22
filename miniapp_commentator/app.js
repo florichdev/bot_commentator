@@ -837,13 +837,33 @@
         const attachmentsWrap = document.createElement("div");
         attachmentsWrap.className = "bubble__attachments";
         for (const file of item.attachments) {
-          const chip = document.createElement("a");
-          chip.className = "attachChip";
-          chip.textContent = `📎 ${file.name || "файл"}`;
-          chip.href = file.url || "#";
-          chip.target = "_blank";
-          chip.rel = "noopener noreferrer";
-          attachmentsWrap.appendChild(chip);
+          const isImage = file.type && file.type.startsWith('image/');
+          
+          if (isImage) {
+            // Предпросмотр изображения
+            const imgWrap = document.createElement("div");
+            imgWrap.className = "attachImage";
+            const img = document.createElement("img");
+            img.src = file.url || "#";
+            img.alt = file.name || "изображение";
+            img.loading = "lazy";
+            img.addEventListener("click", (e) => {
+              e.preventDefault();
+              // Открываем в галерее или новой вкладке
+              window.open(file.url, "_blank", "noopener");
+            });
+            imgWrap.appendChild(img);
+            attachmentsWrap.appendChild(imgWrap);
+          } else {
+            // Ссылка на файл
+            const chip = document.createElement("a");
+            chip.className = "attachChip";
+            chip.textContent = `📎 ${file.name || "файл"}`;
+            chip.href = file.url || "#";
+            chip.target = "_blank";
+            chip.rel = "noopener noreferrer";
+            attachmentsWrap.appendChild(chip);
+          }
         }
         node.querySelector(".bubble__text").after(attachmentsWrap);
       }
@@ -1090,6 +1110,7 @@
 
   async function handleSend() {
     console.log("[DEBUG] handleSend called");
+    console.log("[DEBUG] state.attachments BEFORE check:", JSON.stringify(state.attachments));
     const text = el.commentInput.value.trim();
     console.log("[DEBUG] text:", text);
     console.log("[DEBUG] attachments count:", state.attachments.length);
@@ -1216,7 +1237,7 @@
       el.fileInput.click();
     });
     el.fileInput?.addEventListener("change", async () => {
-      const files = Array.from(el.fileInput.files || []).slice(0, 6);
+      const files = Array.from(el.fileInput.files || []).slice(0, 1); // Ограничение: только 1 файл
       
       if (!files.length) return;
       
@@ -1268,6 +1289,9 @@
       }));
       
       state.attachments = mapped.filter(Boolean); // Убираем null (неудачные загрузки)
+      console.log("[DEBUG] Files uploaded, state.attachments:", state.attachments);
+      console.log("[DEBUG] state.attachments length:", state.attachments.length);
+      console.log("[DEBUG] state.attachments JSON:", JSON.stringify(state.attachments));
       renderAttachmentsBar();
       hideUploadProgress();
       
