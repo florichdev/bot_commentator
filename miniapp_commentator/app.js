@@ -492,6 +492,7 @@
     normalized.reactions = normalized.reactions && typeof normalized.reactions === "object" ? normalized.reactions : {};
     normalized.reactedBy = normalized.reactedBy && typeof normalized.reactedBy === "object" ? normalized.reactedBy : {};
     normalized.replyTo = normalized.replyTo || null;
+    normalized.photo_url = normalized.photo_url || null; // Сохраняем аватарку
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     }
@@ -519,16 +520,22 @@
   }
 
   function setAvatar(avatarElement, authorId, authorName, photoUrl = null) {
+    console.log("[DEBUG] setAvatar called:", { authorId, authorName, photoUrl, myId: state.user.id, myPhoto: state.user.photo_url });
+    
     // Если это мой комментарий, используем мою аватарку
     const isMine = isAuthorizedUser() && authorId === state.user.id;
     const userPhotoUrl = isMine ? state.user.photo_url : photoUrl;
     
+    console.log("[DEBUG] isMine:", isMine, "userPhotoUrl:", userPhotoUrl);
+    
     if (userPhotoUrl) {
       // Используем фото профиля
       avatarElement.innerHTML = `<img src="${userPhotoUrl}" alt="${authorName}" class="avatar-img" onerror="this.parentElement.textContent='${getInitials(authorName)}'">`;
+      console.log("[DEBUG] Set avatar image for", authorName);
     } else {
       // Используем инициалы
       avatarElement.textContent = getInitials(authorName);
+      console.log("[DEBUG] Set avatar initials for", authorName);
     }
   }
 
@@ -1086,6 +1093,7 @@
     const text = el.commentInput.value.trim();
     console.log("[DEBUG] text:", text);
     console.log("[DEBUG] attachments count:", state.attachments.length);
+    console.log("[DEBUG] attachments:", state.attachments);
     
     // Разрешаем отправку если есть текст ИЛИ вложения
     if (!text && state.attachments.length === 0) {
@@ -1100,6 +1108,7 @@
     
     // Если нет текста, но есть вложения - отправляем с пустым текстом
     const finalText = text || "";
+    console.log("[DEBUG] Sending comment with text:", finalText, "and attachments:", state.attachments.length);
     await addComment(finalText);
     el.commentInput.value = "";
     updateCounter();
