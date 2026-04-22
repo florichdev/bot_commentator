@@ -934,11 +934,20 @@
         initData = window.__INIT_DATA_FROM_HASH__;
       }
       
+      // Кодируем initData для безопасной передачи (решает проблему с кириллицей)
+      const headers = {};
+      if (initData) {
+        try {
+          headers["X-Max-Init-Data"] = encodeURIComponent(initData);
+        } catch (e) {
+          console.error("Failed to encode initData:", e);
+          headers["X-Max-Init-Data"] = initData;
+        }
+      }
+      
       const resp = await fetch(`${state.apiBase}/api/upload`, {
         method: "POST",
-        headers: {
-          "X-Max-Init-Data": initData || "",
-        },
+        headers: headers,
         body: formData,
       });
       
