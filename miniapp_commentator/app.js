@@ -666,6 +666,12 @@
   }
 
   function loadComments() {
+    // Защита: не загружаем комментарии если postId = "default-post"
+    if (state.postId === "default-post") {
+      state.comments = [];
+      return;
+    }
+    
     const raw = localStorage.getItem(storageKey(state.postId));
     const parsed = safeParse(raw || "[]", []);
     state.comments = Array.isArray(parsed) ? parsed.map(normalizeComment) : [];
@@ -673,6 +679,13 @@
 
   async function loadCommentsFromServer() {
     if (!state.apiBase) return;
+    
+    // Защита: не загружаем комментарии с сервера если postId = "default-post"
+    if (state.postId === "default-post") {
+      state.comments = [];
+      render();
+      return;
+    }
     
     const serverComments = await apiListComments();
     if (serverComments && serverComments.length > 0) {
@@ -989,6 +1002,18 @@
   }
 
   function render() {
+    // Дополнительная защита: если postId = "default-post", очищаем комментарии
+    if (state.postId === "default-post") {
+      state.comments = [];
+      // Очищаем localStorage от старых комментариев
+      try {
+        localStorage.removeItem(`comments_${state.postId}`);
+        localStorage.removeItem('comments_default-post');
+      } catch (e) {
+        console.warn("Failed to clear localStorage:", e);
+      }
+    }
+    
     el.commentsList.innerHTML = "";
     const list = [...state.comments].sort((a, b) => {
       const aa = new Date(a.createdAt).getTime();
@@ -1729,6 +1754,24 @@
     state.apiBase = getApiBase();
     state.postId = resolvePostId();
     state.postLink = resolvePostLink(state.postId);
+    
+    // Дополнительная защита: очищаем старые комментарии если нет валидного postId
+    if (!state.postId || state.postId === "default-post") {
+      try {
+        // Очищаем все возможные ключи localStorage с комментариями
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('comments_')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        console.log("[DEBUG] Cleared localStorage keys:", keysToRemove);
+      } catch (e) {
+        console.warn("Failed to clear localStorage:", e);
+      }
+    }
     
     // Блокируем UI если нет валидного postId
     if (!state.postId || state.postId === "default-post") {
