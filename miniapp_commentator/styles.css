@@ -680,6 +680,7 @@ body::before{
 }
 .attachmentsBar{
   margin-top: 8px;
+  max-width: 100%;
   width: min(638px, calc(100vw - 28px));
   display: flex;
   flex-wrap: wrap;
