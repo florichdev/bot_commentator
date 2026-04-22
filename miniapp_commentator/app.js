@@ -178,7 +178,19 @@
     }
     
     console.log("[DEBUG] apiHeaders - initData:", initData ? `${initData.substring(0, 50)}...` : "EMPTY");
-    if (initData) headers["X-Max-Init-Data"] = initData;
+    
+    // Кодируем initData для безопасной передачи в заголовках (решает проблему с кириллицей)
+    if (initData) {
+      try {
+        // Используем encodeURIComponent для кодирования всех не-ASCII символов
+        headers["X-Max-Init-Data"] = encodeURIComponent(initData);
+        console.log("[DEBUG] apiHeaders - encoded initData:", headers["X-Max-Init-Data"].substring(0, 50) + "...");
+      } catch (e) {
+        console.error("[DEBUG] Failed to encode initData:", e);
+        headers["X-Max-Init-Data"] = initData;
+      }
+    }
+    
     console.log("[DEBUG] apiHeaders - headers:", headers);
     return headers;
   }
