@@ -163,6 +163,33 @@
     </div>
   </div>
 
+  <div id="deleteModal" class="deleteModal" hidden>
+    <div class="deleteModal__overlay"></div>
+    <div class="deleteModal__content">
+      <div class="deleteModal__header">
+        <div class="deleteModal__title">Удалить комментарий</div>
+      </div>
+      <div class="deleteModal__body">
+        <p class="deleteModal__text">Выберите способ удаления:</p>
+      </div>
+      <div class="deleteModal__actions">
+        <button id="deleteForMeBtn" class="deleteModal__btn deleteModal__btn--secondary" type="button">
+          <svg class="deleteModal__btn-icon" width="20" height="20" aria-hidden="true">
+            <use href="#icon_delete_20"></use>
+          </svg>
+          Только у меня
+        </button>
+        <button id="deleteForAllBtn" class="deleteModal__btn deleteModal__btn--danger" type="button">
+          <svg class="deleteModal__btn-icon" width="20" height="20" aria-hidden="true">
+            <use href="#icon_delete_20"></use>
+          </svg>
+          У всех
+        </button>
+      </div>
+      <button id="deleteCancelBtn" class="deleteModal__cancel" type="button" aria-label="Отменить">✕</button>
+    </div>
+  </div>
+
   <template id="commentTemplate">
     <li class="msg">
       <div class="msg__avatar" aria-hidden="true"></div>

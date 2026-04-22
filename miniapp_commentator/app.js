@@ -15,6 +15,7 @@
     apiBase: "",
     replyTo: null,
     contextCommentId: null,
+    deleteCommentId: null,
     searchQuery: "",
     searchOpen: false,
     themeMode: "system",
@@ -55,6 +56,10 @@
     fileInput: document.getElementById("fileInput"),
     attachmentsBar: document.getElementById("attachmentsBar"),
     gallerySlider: document.getElementById("gallerySlider"),
+    deleteModal: document.getElementById("deleteModal"),
+    deleteForMeBtn: document.getElementById("deleteForMeBtn"),
+    deleteForAllBtn: document.getElementById("deleteForAllBtn"),
+    deleteCancelBtn: document.getElementById("deleteCancelBtn"),
   };
   const THEME_KEY = "max-commentator:theme";
   const BG_KEY = "max-commentator:bg";
@@ -519,6 +524,19 @@
     return parts.map((part) => part[0]).join("") || "П";
   }
 
+  function formatReactionCount(count) {
+    const num = Number(count);
+    if (num >= 1000000) {
+      const millions = num / 1000000;
+      return (millions % 1 === 0 ? millions.toString() : millions.toFixed(1).replace(/\.0$/, '')) + 'M';
+    }
+    if (num >= 1000) {
+      const thousands = num / 1000;
+      return (thousands % 1 === 0 ? thousands.toString() : thousands.toFixed(1).replace(/\.0$/, '')) + 'k';
+    }
+    return String(num);
+  }
+
   function setAvatar(avatarElement, authorId, authorName, photoUrl = null) {
     console.log("[DEBUG] setAvatar called:", { authorId, authorName, photoUrl, myId: state.user.id, myPhoto: state.user.photo_url });
     
@@ -563,6 +581,42 @@
     el.contextMenu.style.top = `${top}px`;
   }
 
+  function openDeleteModal(commentId) {
+    state.deleteCommentId = commentId;
+    el.deleteModal.hidden = false;
+    closeContextMenu();
+  }
+
+  function closeDeleteModal() {
+    state.deleteCommentId = null;
+    el.deleteModal.hidden = true;
+  }
+
+  async function deleteCommentForMe(commentId) {
+    // Удаляем только локально
+    state.comments = state.comments.filter((x) => x.id !== commentId);
+    saveComments();
+    render();
+    closeDeleteModal();
+  }
+
+  async function deleteCommentForAll(commentId) {
+    // Удаляем на сервере и локально
+    const deletedRemote = await apiDeleteComment(commentId);
+    if (!deletedRemote) {
+      state.comments = state.comments.filter((x) => x.id !== commentId);
+      saveComments();
+    } else {
+      const fresh = await apiListComments();
+      if (fresh) {
+        state.comments = fresh;
+        saveComments();
+      }
+    }
+    render();
+    closeDeleteModal();
+  }
+
   function renderContextReactions() {
     el.contextReactions.innerHTML = "";
     for (const emoji of REACTIONS) {
@@ -582,18 +636,33 @@
     item.reactions = item.reactions || {};
     item.reactedBy = item.reactedBy || {};
 
+    // Проверяем ограничение на 3 вида реакций
+    const currentReactionTypes = Object.keys(item.reactions).filter(key => item.reactions[key] > 0);
+    
     if (current === emoji) {
+      // Убираем реакцию
       item.reactions[emoji] = Math.max(0, Number(item.reactions[emoji] || 0) - 1);
       delete item.reactedBy[state.user.id];
     } else {
+      // Проверяем лимит на 3 вида реакций
+      if (!current && !currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
+        alert("Максимум 3 вида реакций на комментарий");
+        return;
+      }
+      
       if (current) {
         item.reactions[current] = Math.max(0, Number(item.reactions[current] || 0) - 1);
       }
       item.reactions[emoji] = Number(item.reactions[emoji] || 0) + 1;
       item.reactedBy[state.user.id] = emoji;
     }
+    
+    // Сохраняем локально
     saveComments();
     render();
+    
+    // Отправляем на сервер
+    await apiUpdateReactions(item.id, item.reactions, item.reactedBy);
   }
 
   function loadComments() {
@@ -611,6 +680,74 @@
       saveComments();
       render();
     }
+  }
+
+  // Real-time обновления через Long Polling
+  let pollingInterval = null;
+  let lastCommentCount = 0;
+
+  function startRealTimeUpdates() {
+    if (pollingInterval) return; // Уже запущено
+    
+    console.log("[DEBUG] Starting real-time updates");
+    
+    // Обновляем каждые 5 секунд
+    pollingInterval = setInterval(async () => {
+      try {
+        if (!state.apiBase) return;
+        
+        const serverComments = await apiListComments();
+        if (serverComments && Array.isArray(serverComments)) {
+          const newCount = serverComments.length;
+          
+          // Если количество комментариев изменилось
+          if (newCount !== lastCommentCount) {
+            console.log("[DEBUG] New comments detected:", newCount, "vs", lastCommentCount);
+            
+            // Показываем уведомление о новых комментариях
+            if (newCount > lastCommentCount && lastCommentCount > 0) {
+              const newCommentsCount = newCount - lastCommentCount;
+              showNewCommentsNotification(newCommentsCount);
+            }
+            
+            state.comments = serverComments;
+            lastCommentCount = newCount;
+            saveComments();
+            render();
+          }
+        }
+      } catch (error) {
+        console.warn("[DEBUG] Real-time update failed:", error);
+      }
+    }, 5000); // 5 секунд
+  }
+
+  function stopRealTimeUpdates() {
+    if (pollingInterval) {
+      console.log("[DEBUG] Stopping real-time updates");
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+  }
+
+  function showNewCommentsNotification(count) {
+    // Создаем уведомление о новых комментариях
+    const notification = document.createElement("div");
+    notification.className = "newCommentsNotification";
+    notification.textContent = `${count} новых комментариев`;
+    notification.addEventListener("click", () => {
+      scrollToBottom(true);
+      notification.remove();
+    });
+    
+    document.body.appendChild(notification);
+    
+    // Автоматически убираем через 5 секунд
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 5000);
   }
 
   function saveComments() {
@@ -681,6 +818,9 @@
         authorName: x.author_name,
         createdAt: x.created_at,
         photo_url: x.author_photo_url,
+        replyTo: x.reply_to, // Добавляем поддержку ответов
+        reactions: x.reactions || {}, // Добавляем реакции
+        reactedBy: x.reacted_by || {}, // Добавляем информацию о том, кто поставил реакции
       })).map(normalizeComment);
     } catch {
       return null;
@@ -725,6 +865,7 @@
           author_name: state.user.name,
           author_photo_url: state.user.photo_url,
           text: payloadText,
+          reply_to: state.replyTo, // Добавляем информацию об ответе
         }),
       });
       
@@ -736,6 +877,9 @@
       
       if (!resp.ok || !data.ok) {
         console.error("Server returned error:", data);
+        if (data.error === "user_banned") {
+          throw new Error("USER_BANNED:" + (data.message || "Вы заблокированы в этом канале"));
+        }
         return null;
       }
       const x = data.item;
@@ -753,7 +897,10 @@
         authorName: x.author_name,
         createdAt: x.created_at,
       };
-    } catch {
+    } catch (error) {
+      if (error.message && error.message.startsWith("USER_BANNED:")) {
+        throw error; // Пробрасываем ошибку бана дальше
+      }
       return null;
     }
   }
@@ -768,6 +915,46 @@
       const data = await resp.json();
       return !!(resp.ok && data.ok);
     } catch {
+      return false;
+    }
+  }
+
+  async function apiUpdateReactions(commentId, reactions, reactedBy) {
+    if (!state.apiBase || !isAuthorizedUser()) return false;
+    try {
+      const resp = await fetch(`${state.apiBase}/api/comments/${encodeURIComponent(commentId)}/reactions`, {
+        method: "PUT",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          reactions,
+          reacted_by: reactedBy,
+          user_id: state.user.id,
+        }),
+      });
+      const data = await resp.json();
+      return !!(resp.ok && data.ok);
+    } catch (error) {
+      console.warn("[DEBUG] Failed to update reactions:", error);
+      return false;
+    }
+  }
+
+  async function apiReportComment(commentId) {
+    if (!state.apiBase || !isAuthorizedUser()) return false;
+    try {
+      const resp = await fetch(`${state.apiBase}/api/comments/${encodeURIComponent(commentId)}/report`, {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          reporter_id: state.user.id,
+          reporter_name: state.user.name,
+          post_id: state.postId,
+        }),
+      });
+      const data = await resp.json();
+      return !!(resp.ok && data.ok);
+    } catch (error) {
+      console.warn("[DEBUG] Failed to report comment:", error);
       return false;
     }
   }
@@ -890,7 +1077,23 @@
         if (count < 1) continue;
         const pill = document.createElement("span");
         pill.className = "reactionPill";
-        pill.textContent = `${key} ${count}`;
+        
+        // Проверяем, поставил ли текущий пользователь эту реакцию
+        const userReaction = item.reactedBy?.[state.user?.id];
+        if (userReaction === key) {
+          pill.className += " is-active";
+        }
+        
+        pill.textContent = `${key} ${formatReactionCount(count)}`;
+        pill.dataset.reaction = key;
+        pill.style.cursor = "pointer";
+        
+        // Добавляем обработчик клика для переключения реакции
+        pill.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await toggleReaction(item, key);
+        });
+        
         reactionsWrap.appendChild(pill);
       }
 
@@ -1076,6 +1279,14 @@
 
   async function addComment(text) {
     console.log("[DEBUG] addComment called with text:", text.substring(0, 50));
+    
+    // Проверка на наличие валидного postId
+    if (!state.postId || state.postId === "default-post") {
+      console.warn("[BLOCKED] Cannot add comment without valid post_id");
+      alert("⚠️ Комментарии можно писать только в контексте поста.\n\nОткройте миниапп через кнопку под постом в канале.");
+      return;
+    }
+    
     ensureUserIdentity();
     
     const preparedAttachments = state.attachments.map((item) => ({
@@ -1086,32 +1297,58 @@
     
     console.log("[DEBUG] Prepared attachments:", preparedAttachments.length);
     
-    const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN), preparedAttachments);
-    
-    if (remoteItemRaw) {
-      console.log("[DEBUG] Comment saved to server successfully");
-      const fresh = await apiListComments();
-      if (fresh) {
-        state.comments = fresh;
+    try {
+      const remoteItemRaw = await apiCreateComment(text.slice(0, MAX_LEN), preparedAttachments);
+      
+      if (remoteItemRaw) {
+        console.log("[DEBUG] Comment saved to server successfully");
+        const fresh = await apiListComments();
+        if (fresh) {
+          state.comments = fresh;
+          saveComments();
+        }
+      } else {
+        console.log("[DEBUG] Failed to save comment to server, saving locally");
+        const localItem = {
+          id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          postId: state.postId,
+          authorId: state.user.id,
+          authorName: state.user.name,
+          text: text.slice(0, MAX_LEN),
+          attachments: preparedAttachments,
+          createdAt: new Date().toISOString(),
+          reactions: {},
+          reactedBy: {},
+          replyTo: state.replyTo,
+        };
+        state.comments.push(localItem);
         saveComments();
+        console.warn("Комментарий сохранен локально, сервер недоступен");
       }
-    } else {
-      console.log("[DEBUG] Failed to save comment to server, saving locally");
-      const localItem = {
-        id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        postId: state.postId,
-        authorId: state.user.id,
-        authorName: state.user.name,
-        text: text.slice(0, MAX_LEN),
-        attachments: preparedAttachments,
-        createdAt: new Date().toISOString(),
-        reactions: {},
-        reactedBy: {},
-        replyTo: state.replyTo,
-      };
-      state.comments.push(localItem);
-      saveComments();
-      console.warn("Комментарий сохранен локально, сервер недоступен");
+    } catch (error) {
+      if (error.message && error.message.startsWith("USER_BANNED:")) {
+        const message = error.message.replace("USER_BANNED:", "");
+        alert("🚫 " + message);
+        return; // Не добавляем комментарий локально при бане
+      } else {
+        console.error("Error creating comment:", error);
+        // При других ошибках сохраняем локально
+        const localItem = {
+          id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          postId: state.postId,
+          authorId: state.user.id,
+          authorName: state.user.name,
+          text: text.slice(0, MAX_LEN),
+          attachments: preparedAttachments,
+          createdAt: new Date().toISOString(),
+          reactions: {},
+          reactedBy: {},
+          replyTo: state.replyTo,
+        };
+        state.comments.push(localItem);
+        saveComments();
+        console.warn("Комментарий сохранен локально из-за ошибки");
+      }
     }
     
     state.replyTo = null;
@@ -1329,6 +1566,20 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeContextMenu();
     });
+    
+    // Останавливаем real-time обновления при закрытии страницы
+    window.addEventListener("beforeunload", () => {
+      stopRealTimeUpdates();
+    });
+    
+    // Останавливаем обновления при потере фокуса (экономия ресурсов)
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopRealTimeUpdates();
+      } else {
+        startRealTimeUpdates();
+      }
+    });
     el.contextMenu?.addEventListener("click", async (e) => {
       const item = findCommentById(state.contextCommentId);
       if (!item) {
@@ -1360,23 +1611,17 @@
       }
 
       if (action === "report") {
-        alert("Жалоба отправлена.");
+        const success = await apiReportComment(item.id);
+        if (success) {
+          alert("✅ Жалоба отправлена администратору канала.");
+        } else {
+          alert("❌ Не удалось отправить жалобу. Попробуйте позже.");
+        }
       }
 
       if (action === "delete") {
         if (item.authorId === state.user.id) {
-          const deletedRemote = await apiDeleteComment(item.id);
-          if (!deletedRemote) {
-            state.comments = state.comments.filter((x) => x.id !== item.id);
-            saveComments();
-          } else {
-            const fresh = await apiListComments();
-            if (fresh) {
-              state.comments = fresh;
-              saveComments();
-            }
-          }
-          render();
+          openDeleteModal(item.id);
         } else {
           alert("Можно удалять только свои комментарии.");
         }
@@ -1444,6 +1689,35 @@
       syncScrollDownButton();
     });
 
+    // Обработчики для модального окна удаления
+    el.deleteForMeBtn?.addEventListener("click", () => {
+      if (state.deleteCommentId) {
+        deleteCommentForMe(state.deleteCommentId);
+      }
+    });
+
+    el.deleteForAllBtn?.addEventListener("click", () => {
+      if (state.deleteCommentId) {
+        deleteCommentForAll(state.deleteCommentId);
+      }
+    });
+
+    el.deleteCancelBtn?.addEventListener("click", closeDeleteModal);
+
+    // Закрытие модального окна по клику на overlay
+    el.deleteModal?.addEventListener("click", (e) => {
+      if (e.target === el.deleteModal || e.target.classList.contains("deleteModal__overlay")) {
+        closeDeleteModal();
+      }
+    });
+
+    // Закрытие модального окна по Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !el.deleteModal.hidden) {
+        closeDeleteModal();
+      }
+    });
+
   }
 
   function boot() {
@@ -1455,6 +1729,20 @@
     state.apiBase = getApiBase();
     state.postId = resolvePostId();
     state.postLink = resolvePostLink(state.postId);
+    
+    // Блокируем UI если нет валидного postId
+    if (!state.postId || state.postId === "default-post") {
+      if (el.commentInput) {
+        el.commentInput.disabled = true;
+        el.commentInput.placeholder = "⚠️ Откройте миниапп через кнопку под постом в канале";
+      }
+      if (el.sendBtn) el.sendBtn.disabled = true;
+      if (el.attachBtn) el.attachBtn.disabled = true;
+      if (el.emptyState) {
+        el.emptyState.innerHTML = "<p>⚠️ Комментарии доступны только в контексте поста.<br><br>Откройте миниапп через кнопку под постом в канале.</p>";
+      }
+    }
+    
     syncAuthUiState();
     setTimeout(() => {
       setThemeFromMax();
@@ -1465,7 +1753,12 @@
       syncAuthUiState();
     }, 2500);
     loadComments();
-    loadCommentsFromServer();
+    loadCommentsFromServer().then(() => {
+      // Инициализируем счетчик после первой загрузки
+      lastCommentCount = state.comments.length;
+      // Запускаем real-time обновления
+      startRealTimeUpdates();
+    });
     syncSortButton();
     if (el.searchPanel) el.searchPanel.hidden = true;
     updateCounter();
@@ -1698,5 +1991,19 @@
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
+  }
+
+  // Тест форматирования чисел реакций (только для разработки)
+  if (window.location.search.includes('test=reactions')) {
+    console.log('=== Тест форматирования чисел реакций ===');
+    const testCases = [
+      999, 1000, 1100, 1500, 2000, 10000, 15500, 
+      999999, 1000000, 1100000, 2500000, 10000000
+    ];
+    
+    testCases.forEach(num => {
+      console.log(`${num} → ${formatReactionCount(num)}`);
+    });
+    console.log('=== Конец теста ===');
   }
 })();
