@@ -673,6 +673,7 @@
         authorId: x.author_id,
         authorName: x.author_name,
         createdAt: x.created_at,
+        photo_url: x.author_photo_url,
       })).map(normalizeComment);
     } catch {
       return null;
@@ -715,6 +716,7 @@
           post_id: state.postId,
           author_id: state.user.id,
           author_name: state.user.name,
+          author_photo_url: state.user.photo_url,
           text: payloadText,
         }),
       });
@@ -1083,12 +1085,22 @@
     console.log("[DEBUG] handleSend called");
     const text = el.commentInput.value.trim();
     console.log("[DEBUG] text:", text);
-    if (!text) return;
+    console.log("[DEBUG] attachments count:", state.attachments.length);
+    
+    // Разрешаем отправку если есть текст ИЛИ вложения
+    if (!text && state.attachments.length === 0) {
+      console.log("[DEBUG] No text and no attachments, skipping");
+      return;
+    }
+    
     if (text.length > MAX_LEN) {
       alert("Слишком длинный комментарий.");
       return;
     }
-    await addComment(text);
+    
+    // Если нет текста, но есть вложения - отправляем с пустым текстом
+    const finalText = text || "";
+    await addComment(finalText);
     el.commentInput.value = "";
     updateCounter();
     syncComposerSize();
