@@ -410,50 +410,43 @@
     
     if (actualTheme === "light") {
       root.classList.add("theme-light");
-    } else if (actualTheme === "dark") {
-      root.classList.add("theme-dark");
     }
+    // Для темной темы класс не добавляем - используем :root по умолчанию
   }
 
   function applyBackgroundScheme() {
     const scheme = BG_SCHEMES.find((item) => item.id === state.bgScheme) || BG_SCHEMES[0];
     
-    console.log("[DEBUG] Applying background scheme:", scheme);
-    
     if (scheme.gradient) {
-      // Применяем градиент как фон
+      // Применяем градиент как фон чата
       document.documentElement.style.setProperty("--chat-bg-base", scheme.gradient);
+      
       // Применяем дополнительные градиенты поверх паттерна
       document.documentElement.style.setProperty("--overlay-gradients", 
         `radial-gradient(45% 35% at 50% 35%, rgba(128, 210, 255, 0.08) 0%, rgba(0,0,0,0) 68%),
          radial-gradient(57.57% 53.61% at 94.4% 14.38%, var(--chat-additional-1) 0%, var(--chat-additional-2) 48%, var(--chat-additional-3) 100%),
          radial-gradient(140.37% 51.38% at 0% 80.05%, var(--chat-additional-4) 0%, var(--chat-additional-5) 52%, var(--chat-additional-6) 100%)`
       );
-      // Извлекаем первый и последний цвет из градиента для кнопки отправки
+      
+      // Извлекаем цвета для кнопки отправки
       const colors = scheme.gradient.match(/#[0-9a-fA-F]{6}/g) || [];
       if (colors.length >= 2) {
         document.documentElement.style.setProperty("--send-bg", colors[0]);
         document.documentElement.style.setProperty("--send-border", colors[0]);
       }
     } else {
-      // Без градиента - только паттерн
-      // Сбрасываем к базовым цветам в зависимости от темы
-      const isDark = document.documentElement.classList.contains('theme-dark') || 
-                     (!document.documentElement.classList.contains('theme-light') && 
-                      window.matchMedia("(prefers-color-scheme: dark)").matches);
+      // Без градиента - только паттерн с базовым цветом
+      const isLight = document.documentElement.classList.contains('theme-light');
       
-      if (isDark) {
-        document.documentElement.style.setProperty("--chat-bg-base", "#0d141e");
-      } else {
+      if (isLight) {
         document.documentElement.style.setProperty("--chat-bg-base", "#f5f9ff");
+      } else {
+        document.documentElement.style.setProperty("--chat-bg-base", "#0d141e");
       }
       
       // Убираем дополнительные градиенты
       document.documentElement.style.setProperty("--overlay-gradients", "none");
     }
-    
-    console.log("[DEBUG] Applied --chat-bg-base:", getComputedStyle(document.documentElement).getPropertyValue('--chat-bg-base'));
-    console.log("[DEBUG] Applied --overlay-gradients:", getComputedStyle(document.documentElement).getPropertyValue('--overlay-gradients'));
   }
 
   function loadVisualSettings() {
