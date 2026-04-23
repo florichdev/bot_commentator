@@ -716,7 +716,21 @@
               showNewCommentsNotification(newCommentsCount);
             }
             
-            state.comments = serverComments;
+            // Мерджим комментарии: сохраняем локальные реакции
+            const mergedComments = serverComments.map(serverComment => {
+              const localComment = state.comments.find(c => c.id === serverComment.id);
+              if (localComment) {
+                // Сохраняем серверные реакции, они приоритетнее
+                return {
+                  ...serverComment,
+                  reactions: serverComment.reactions || localComment.reactions || {},
+                  reactedBy: serverComment.reactedBy || localComment.reactedBy || {}
+                };
+              }
+              return serverComment;
+            });
+            
+            state.comments = mergedComments;
             lastCommentCount = newCount;
             saveComments();
             render();
@@ -978,17 +992,32 @@
 
   function formatTime(iso) {
     try {
+      // Парсим дату и конвертируем в МСК (UTC+3)
       const d = new Date(iso);
+      
+      // Получаем время в UTC и добавляем 3 часа для МСК
+      const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
+      const mskTime = new Date(utcTime + (3 * 3600000)); // UTC+3
+      
       const now = new Date();
+      const nowUtc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const nowMsk = new Date(nowUtc + (3 * 3600000));
+      
       const sameDay =
-        d.getFullYear() === now.getFullYear() &&
-        d.getMonth() === now.getMonth() &&
-        d.getDate() === now.getDate();
+        mskTime.getFullYear() === nowMsk.getFullYear() &&
+        mskTime.getMonth() === nowMsk.getMonth() &&
+        mskTime.getDate() === nowMsk.getDate();
+      
+      const hours = String(mskTime.getHours()).padStart(2, '0');
+      const minutes = String(mskTime.getMinutes()).padStart(2, '0');
+      
       if (sameDay) {
-        return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+        return `${hours}:${minutes}`;
       }
-      return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }) + " " +
-        d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      
+      const day = String(mskTime.getDate()).padStart(2, '0');
+      const month = String(mskTime.getMonth() + 1).padStart(2, '0');
+      return `${day}.${month} ${hours}:${minutes}`;
     } catch {
       return iso;
     }
@@ -1238,7 +1267,16 @@
       }
       
       const data = await resp.json();
-      return data.url || null;
+      // Сервер возвращает token, который нужно использовать для attachment
+      // Для превью создаем временный URL из blob
+      if (data.token) {
+        return {
+          token: data.token,
+          previewUrl: URL.createObjectURL(file), // Локальное превью
+          type: file.type
+        };
+      }
+      return null;
     } catch (error) {
       console.error("Upload error:", error);
       return null;
@@ -1539,9 +1577,9 @@
         
         // Загружаем файл на сервер
         updateUploadProgress(index, 'uploading', `Загрузка ${file.name}...`);
-        const uploadedUrl = await uploadFileToServer(file);
+        const uploadResult = await uploadFileToServer(file);
         
-        if (!uploadedUrl) {
+        if (!uploadResult) {
           console.error("Failed to upload file:", file.name);
           updateUploadProgress(index, 'error', `Ошибка загрузки ${file.name}`);
           return null;
@@ -1552,8 +1590,9 @@
         return {
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: file.name,
-          type: file.type || "application/octet-stream",
-          url: uploadedUrl, // ✅ Публичный URL с сервера
+          type: uploadResult.type || file.type || "application/octet-stream",
+          url: uploadResult.previewUrl, // Локальное превью для отображения
+          token: uploadResult.token, // Токен для отправки через API
         };
       }));
       

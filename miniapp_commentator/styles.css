@@ -1175,11 +1175,12 @@ body::before{
 .newCommentsNotification{
   position: fixed;
   top: 20px;
-  right: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   background: rgba(24, 119, 242, 0.95);
   color: white;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 12px 20px;
+  border-radius: 24px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -1187,11 +1188,11 @@ body::before{
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: slideInRight 0.3s ease-out;
+  animation: slideInDown 0.3s ease-out;
   transition: all 0.2s ease;
 }
 .newCommentsNotification:hover{
-  transform: translateY(-2px);
+  transform: translateX(-50%) translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 .theme-light .newCommentsNotification{
@@ -1199,13 +1200,13 @@ body::before{
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-@keyframes slideInRight {
+@keyframes slideInDown {
   from {
-    transform: translateX(100%);
+    transform: translateX(-50%) translateY(-100%);
     opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateX(-50%) translateY(0);
     opacity: 1;
   }
 }
