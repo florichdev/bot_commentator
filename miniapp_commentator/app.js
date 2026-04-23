@@ -1268,11 +1268,26 @@
       
       const data = await resp.json();
       // Сервер возвращает token, который нужно использовать для attachment
-      // Для превью создаем временный URL из blob
+      // Для превью создаем base64 из файла для постоянного хранения
       if (data.token) {
+        // Создаем base64 для изображений (для превью)
+        let previewUrl = null;
+        if (file.type.startsWith('image/')) {
+          try {
+            previewUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+          } catch (e) {
+            console.error("Failed to create base64 preview:", e);
+          }
+        }
+        
         return {
           token: data.token,
-          previewUrl: URL.createObjectURL(file), // Локальное превью
+          previewUrl: previewUrl, // base64 для изображений, null для других файлов
           type: file.type
         };
       }

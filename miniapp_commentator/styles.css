@@ -1525,6 +1525,10 @@ body::before{
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .theme-light .uploadProgress__item {
