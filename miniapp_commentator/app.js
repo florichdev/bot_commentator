@@ -493,6 +493,15 @@
     normalized.photo_url = normalized.photo_url || null; // Сохраняем аватарку
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
+    } else {
+      // Очищаем blob URL из старых комментариев
+      normalized.attachments = normalized.attachments.map(att => {
+        if (att.url && att.url.startsWith('blob:')) {
+          // Удаляем blob URL, оставляем только токен
+          return { ...att, url: null };
+        }
+        return att;
+      }).filter(att => att.url || att.token); // Удаляем вложения без URL и токена
     }
     return normalized;
   }
@@ -681,8 +690,9 @@
     }
     
     const serverComments = await apiListComments();
-    if (serverComments && serverComments.length > 0) {
-      state.comments = serverComments;
+    if (serverComments && serverComments.length >= 0) {
+      // Всегда обновляем из сервера (даже если пусто)
+      state.comments = serverComments.map(normalizeComment);
       saveComments();
       render();
     }
