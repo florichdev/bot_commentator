@@ -498,7 +498,8 @@
       normalized.attachments = normalized.attachments.map(att => {
         // Если есть токен, но нет URL (или это blob URL), создаем прямой URL к MAX CDN
         if (att.token && (!att.url || att.url.startsWith('blob:'))) {
-          const url = `https://i.oneme.ru/i?r=${att.token}`;
+          // URL-encode токен для безопасной передачи в query параметре
+          const url = `https://i.oneme.ru/i?r=${encodeURIComponent(att.token)}`;
           console.log(`[DEBUG] Created URL from token: ${url.substring(0, 80)}...`);
           return {
             ...att,
@@ -1325,19 +1326,19 @@
       }
       
       const data = await resp.json();
-      // Сервер возвращает token
-      // Используем прямой URL от MAX CDN для постоянного доступа
+      // Сервер возвращает token и url
+      // Если сервер не вернул URL, создаем его из токена
       if (data.token) {
-        let previewUrl = null;
+        let previewUrl = data.url; // Используем URL от сервера если есть
         
-        // Для изображений используем прямой MAX CDN URL
-        if (file.type.startsWith('image/')) {
-          previewUrl = `https://i.oneme.ru/i?r=${data.token}`;
+        // Если URL нет, создаем его из токена для изображений
+        if (!previewUrl && file.type.startsWith('image/')) {
+          previewUrl = `https://i.oneme.ru/i?r=${encodeURIComponent(data.token)}`;
         }
         
         return {
           token: data.token,
-          url: previewUrl, // Прямой URL от MAX CDN
+          url: previewUrl, // URL от сервера или созданный из токена
           type: data.type || file.type
         };
       }
