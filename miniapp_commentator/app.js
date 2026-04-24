@@ -496,11 +496,12 @@
     } else {
       // Преобразуем attachments: создаем URL из токена если его нет
       normalized.attachments = normalized.attachments.map(att => {
-        // Если есть токен, но нет URL (или это blob URL), создаем прямой URL к MAX CDN
+        // Если есть токен, но нет URL (или это blob URL), создаем URL через прокси
         if (att.token && (!att.url || att.url.startsWith('blob:'))) {
-          // URL-encode токен для безопасной передачи в query параметре
-          const url = `https://i.oneme.ru/i?r=${encodeURIComponent(att.token)}`;
-          console.log(`[DEBUG] Created URL from token: ${url.substring(0, 80)}...`);
+          const apiBase = state.apiBase || getApiBase();
+          // Используем прокси для избежания проблем с URL encoding в query параметрах
+          const url = `${apiBase}/api/media/${encodeURIComponent(att.token)}`;
+          console.log(`[DEBUG] Created proxy URL from token: ${url.substring(0, 80)}...`);
           return {
             ...att,
             url: url
@@ -1326,19 +1327,20 @@
       }
       
       const data = await resp.json();
-      // Сервер возвращает token и url
-      // Если сервер не вернул URL, создаем его из токена
+      // Сервер возвращает token
+      // Используем прокси для избежания проблем с URL encoding
       if (data.token) {
-        let previewUrl = data.url; // Используем URL от сервера если есть
-        
-        // Если URL нет, создаем его из токена для изображений
-        if (!previewUrl && file.type.startsWith('image/')) {
-          previewUrl = `https://i.oneme.ru/i?r=${encodeURIComponent(data.token)}`;
+        // state.apiBase уже установлен при инициализации
+        if (!state.apiBase) {
+          console.error("API base URL not set, cannot create media URL");
+          return null;
         }
+        
+        const previewUrl = `${state.apiBase}/api/media/${encodeURIComponent(data.token)}`;
         
         return {
           token: data.token,
-          url: previewUrl, // URL от сервера или созданный из токена
+          url: previewUrl, // URL через прокси
           type: data.type || file.type
         };
       }
