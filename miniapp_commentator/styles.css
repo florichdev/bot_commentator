@@ -1190,6 +1190,8 @@ body::before{
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   animation: slideInDown 0.3s ease-out;
   transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
 }
 .newCommentsNotification:hover{
   transform: translateX(-50%) translateY(-2px);

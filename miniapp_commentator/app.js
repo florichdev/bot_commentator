@@ -801,24 +801,8 @@
 
   function saveComments() {
     try {
-      // Удаляем base64 URL перед сохранением чтобы не переполнить localStorage
-      const commentsToSave = state.comments.map(comment => {
-        if (comment.attachments && comment.attachments.length > 0) {
-          return {
-            ...comment,
-            attachments: comment.attachments.map(att => ({
-              name: att.name,
-              type: att.type,
-              token: att.token,
-              // Не сохраняем url с base64
-              url: att.url && att.url.startsWith('data:') ? null : att.url
-            }))
-          };
-        }
-        return comment;
-      });
-      
-      localStorage.setItem(storageKey(state.postId), JSON.stringify(commentsToSave));
+      // Сохраняем комментарии с URL (они теперь постоянные через proxy)
+      localStorage.setItem(storageKey(state.postId), JSON.stringify(state.comments));
     } catch (e) {
       console.error("Failed to save comments to localStorage:", e);
       // Если переполнен - очищаем старые комментарии
@@ -1324,28 +1308,19 @@
       }
       
       const data = await resp.json();
-      // Сервер возвращает token и url (для изображений)
-      // Для превью используем url если есть, иначе создаем base64
+      // Сервер возвращает token
+      // Формируем URL через наш proxy для постоянного доступа
       if (data.token) {
-        let previewUrl = data.url; // URL от MAX CDN для изображений
+        let previewUrl = null;
         
-        // Если URL нет (видео/аудио), создаем base64 для превью
-        if (!previewUrl && file.type.startsWith('image/')) {
-          try {
-            previewUrl = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
-          } catch (e) {
-            console.error("Failed to create base64 preview:", e);
-          }
+        // Для изображений используем proxy URL (работает всегда)
+        if (file.type.startsWith('image/')) {
+          previewUrl = `${state.apiBase}/api/media/${encodeURIComponent(data.token)}`;
         }
         
         return {
           token: data.token,
-          url: previewUrl, // URL от MAX или base64
+          url: previewUrl, // URL через наш proxy
           type: data.type || file.type
         };
       }
