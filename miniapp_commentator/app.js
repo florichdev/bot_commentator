@@ -496,12 +496,13 @@
     } else {
       // Преобразуем attachments: создаем URL из токена если его нет
       normalized.attachments = normalized.attachments.map(att => {
-        // Если есть токен, но нет URL (или это blob URL), создаем URL через прокси
+        // Если есть токен, но нет URL (или это blob URL), создаем прямой URL к MAX CDN
         if (att.token && (!att.url || att.url.startsWith('blob:'))) {
-          const apiBase = state.apiBase || getApiBase();
+          const url = `https://i.oneme.ru/i?r=${att.token}`;
+          console.log(`[DEBUG] Created URL from token: ${url.substring(0, 80)}...`);
           return {
             ...att,
-            url: `${apiBase}/api/media/${encodeURIComponent(att.token)}`
+            url: url
           };
         }
         return att;
@@ -1117,7 +1118,9 @@
       if (item.attachments?.length) {
         const attachmentsWrap = document.createElement("div");
         attachmentsWrap.className = "bubble__attachments";
+        console.log(`[DEBUG] Rendering ${item.attachments.length} attachments for comment ${item.id}`);
         for (const file of item.attachments) {
+          console.log(`[DEBUG] Attachment:`, { name: file.name, type: file.type, url: file.url?.substring(0, 80) });
           const isImage = file.type && file.type.startsWith('image/');
           
           // Показываем превью для изображений
@@ -1129,6 +1132,8 @@
             img.src = file.url;
             img.alt = file.name || "изображение";
             img.loading = "lazy";
+            
+            console.log(`[DEBUG] Creating image element with src: ${file.url.substring(0, 80)}...`);
             
             // Обработка ошибки загрузки изображения
             img.addEventListener("error", (e) => {
@@ -1321,18 +1326,18 @@
       
       const data = await resp.json();
       // Сервер возвращает token
-      // Формируем URL через наш proxy для постоянного доступа
+      // Используем прямой URL от MAX CDN для постоянного доступа
       if (data.token) {
         let previewUrl = null;
         
-        // Для изображений используем proxy URL (работает всегда)
+        // Для изображений используем прямой MAX CDN URL
         if (file.type.startsWith('image/')) {
-          previewUrl = `${state.apiBase}/api/media/${encodeURIComponent(data.token)}`;
+          previewUrl = `https://i.oneme.ru/i?r=${data.token}`;
         }
         
         return {
           token: data.token,
-          url: previewUrl, // URL через наш proxy
+          url: previewUrl, // Прямой URL от MAX CDN
           type: data.type || file.type
         };
       }
