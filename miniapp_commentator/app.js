@@ -494,11 +494,15 @@
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     } else {
-      // Очищаем blob URL из старых комментариев
+      // Преобразуем attachments: создаем URL из токена если его нет
       normalized.attachments = normalized.attachments.map(att => {
-        if (att.url && att.url.startsWith('blob:')) {
-          // Удаляем blob URL, оставляем только токен
-          return { ...att, url: null };
+        // Если есть токен, но нет URL (или это blob URL), создаем URL через прокси
+        if (att.token && (!att.url || att.url.startsWith('blob:'))) {
+          const apiBase = state.apiBase || getApiBase();
+          return {
+            ...att,
+            url: `${apiBase}/api/media/${encodeURIComponent(att.token)}`
+          };
         }
         return att;
       }).filter(att => att.url || att.token); // Удаляем вложения без URL и токена
@@ -1116,7 +1120,7 @@
         for (const file of item.attachments) {
           const isImage = file.type && file.type.startsWith('image/');
           
-          // Показываем превью только если есть URL (base64 или blob)
+          // Показываем превью для изображений
           if (isImage && file.url) {
             // Предпросмотр изображения
             const imgWrap = document.createElement("div");
@@ -1132,25 +1136,33 @@
               // Заменяем на ссылку при ошибке загрузки
               const chip = document.createElement("div");
               chip.className = "attachChip";
+              chip.style.cursor = "pointer";
               chip.textContent = `🖼️ ${file.name || "изображение"}`;
+              chip.addEventListener("click", (e) => {
+                e.preventDefault();
+                window.open(file.url, "_blank", "noopener");
+              });
               imgWrap.replaceWith(chip);
             });
             
             img.addEventListener("click", (e) => {
               e.preventDefault();
-              // Открываем в галерее или новой вкладке
-              if (file.url.startsWith('data:')) {
-                window.open(file.url, "_blank", "noopener");
-              }
+              // Открываем изображение в новой вкладке
+              window.open(file.url, "_blank", "noopener");
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
-          } else {
-            // Ссылка на файл (или изображение без превью)
+          } else if (file.url) {
+            // Кликабельная ссылка на файл
             const chip = document.createElement("div");
             chip.className = "attachChip";
+            chip.style.cursor = "pointer";
             const icon = isImage ? "🖼️" : "📎";
             chip.textContent = `${icon} ${file.name || "файл"}`;
+            chip.addEventListener("click", (e) => {
+              e.preventDefault();
+              window.open(file.url, "_blank", "noopener");
+            });
             attachmentsWrap.appendChild(chip);
           }
         }

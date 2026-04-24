@@ -762,11 +762,18 @@ body::before{
   border-radius: 999px;
   padding: 4px 8px;
   font-size: 12px;
+  transition: opacity 0.2s, background 0.2s;
+}
+.attachChip:hover{
+  opacity: 0.8;
 }
 .theme-light .attachChip{
   color: var(--text);
   border-color: rgba(30,54,79,0.2);
   background: rgba(255,255,255,0.86);
+}
+.theme-light .attachChip:hover{
+  background: rgba(255,255,255,1);
 }
 .settingsModal{
   position: fixed;
