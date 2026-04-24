@@ -716,30 +716,39 @@
         if (serverComments && Array.isArray(serverComments)) {
           const newCount = serverComments.length;
           
-          // Если количество комментариев изменилось
-          if (newCount !== lastCommentCount) {
-            console.log("[DEBUG] New comments detected:", newCount, "vs", lastCommentCount);
+          // Проверяем есть ли новые комментарии от других пользователей
+          let newCommentsFromOthers = 0;
+          if (newCount > lastCommentCount && lastCommentCount > 0) {
+            // Находим новые комментарии
+            const newComments = serverComments.slice(0, newCount - lastCommentCount);
+            // Считаем только чужие комментарии
+            newCommentsFromOthers = newComments.filter(c => c.author_id !== state.user.id).length;
             
-            // Показываем уведомление о новых комментариях
-            if (newCount > lastCommentCount && lastCommentCount > 0) {
-              const newCommentsCount = newCount - lastCommentCount;
-              showNewCommentsNotification(newCommentsCount);
+            // Показываем уведомление только о чужих комментариях
+            if (newCommentsFromOthers > 0) {
+              showNewCommentsNotification(newCommentsFromOthers);
             }
-            
-            // Мерджим комментарии: сохраняем локальные реакции
-            const mergedComments = serverComments.map(serverComment => {
-              const localComment = state.comments.find(c => c.id === serverComment.id);
-              if (localComment) {
-                // Сохраняем серверные реакции, они приоритетнее
-                return {
-                  ...serverComment,
-                  reactions: serverComment.reactions || localComment.reactions || {},
-                  reactedBy: serverComment.reactedBy || localComment.reactedBy || {}
-                };
-              }
-              return serverComment;
-            });
-            
+          }
+          
+          // Мерджим комментарии: обновляем реакции с сервера
+          const mergedComments = serverComments.map(serverComment => {
+            const localComment = state.comments.find(c => c.id === serverComment.id);
+            if (localComment) {
+              // Используем серверные реакции (они актуальнее)
+              return {
+                ...serverComment,
+                reactions: serverComment.reactions || {},
+                reactedBy: serverComment.reactedBy || {}
+              };
+            }
+            return serverComment;
+          });
+          
+          // Обновляем состояние только если есть изменения
+          const hasChanges = newCount !== lastCommentCount || 
+                            JSON.stringify(mergedComments) !== JSON.stringify(state.comments);
+          
+          if (hasChanges) {
             state.comments = mergedComments;
             lastCommentCount = newCount;
             saveComments();
@@ -761,10 +770,20 @@
   }
 
   function showNewCommentsNotification(count) {
+    // Правильное склонение
+    let text;
+    if (count === 1) {
+      text = "Новый комментарий";
+    } else if (count >= 2 && count <= 4) {
+      text = `${count} новых`;
+    } else {
+      text = `${count} новых`;
+    }
+    
     // Создаем уведомление о новых комментариях
     const notification = document.createElement("div");
     notification.className = "newCommentsNotification";
-    notification.textContent = `${count} новых комментариев`;
+    notification.textContent = text;
     notification.addEventListener("click", () => {
       scrollToBottom(true);
       notification.remove();
@@ -781,7 +800,37 @@
   }
 
   function saveComments() {
-    localStorage.setItem(storageKey(state.postId), JSON.stringify(state.comments));
+    try {
+      // Удаляем base64 URL перед сохранением чтобы не переполнить localStorage
+      const commentsToSave = state.comments.map(comment => {
+        if (comment.attachments && comment.attachments.length > 0) {
+          return {
+            ...comment,
+            attachments: comment.attachments.map(att => ({
+              name: att.name,
+              type: att.type,
+              token: att.token,
+              // Не сохраняем url с base64
+              url: att.url && att.url.startsWith('data:') ? null : att.url
+            }))
+          };
+        }
+        return comment;
+      });
+      
+      localStorage.setItem(storageKey(state.postId), JSON.stringify(commentsToSave));
+    } catch (e) {
+      console.error("Failed to save comments to localStorage:", e);
+      // Если переполнен - очищаем старые комментарии
+      if (e.name === 'QuotaExceededError') {
+        try {
+          localStorage.removeItem(storageKey(state.postId));
+          console.log("Cleared localStorage for this post due to quota");
+        } catch (clearError) {
+          console.error("Failed to clear localStorage:", clearError);
+        }
+      }
+    }
   }
 
   function getApiBase() {
@@ -1083,12 +1132,13 @@
         for (const file of item.attachments) {
           const isImage = file.type && file.type.startsWith('image/');
           
-          if (isImage) {
+          // Показываем превью только если есть URL (base64 или blob)
+          if (isImage && file.url) {
             // Предпросмотр изображения
             const imgWrap = document.createElement("div");
             imgWrap.className = "attachImage";
             const img = document.createElement("img");
-            img.src = file.url || "#";
+            img.src = file.url;
             img.alt = file.name || "изображение";
             img.loading = "lazy";
             
@@ -1096,32 +1146,30 @@
             img.addEventListener("error", (e) => {
               console.warn("Image failed to load, showing as link:", file.url);
               // Заменяем на ссылку при ошибке загрузки
-              const chip = document.createElement("a");
+              const chip = document.createElement("div");
               chip.className = "attachChip";
               chip.textContent = `🖼️ ${file.name || "изображение"}`;
-              chip.href = file.url || "#";
-              chip.target = "_blank";
-              chip.rel = "noopener noreferrer";
               imgWrap.replaceWith(chip);
             });
             
             img.addEventListener("click", (e) => {
               e.preventDefault();
               // Открываем в галерее или новой вкладке
-              window.open(file.url, "_blank", "noopener");
+              if (file.url.startsWith('data:')) {
+                window.open(file.url, "_blank", "noopener");
+              }
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
           } else {
-            // Ссылка на файл
-            const chip = document.createElement("a");
+            // Ссылка на файл (или изображение без превью)
+            const chip = document.createElement("div");
             chip.className = "attachChip";
-            chip.textContent = `📎 ${file.name || "файл"}`;
-            chip.href = file.url || "#";
-            chip.target = "_blank";
-            chip.rel = "noopener noreferrer";
+            const icon = isImage ? "🖼️" : "📎";
+            chip.textContent = `${icon} ${file.name || "файл"}`;
             attachmentsWrap.appendChild(chip);
           }
+        }
         }
         node.querySelector(".bubble__text").after(attachmentsWrap);
       }
@@ -1277,12 +1325,13 @@
       }
       
       const data = await resp.json();
-      // Сервер возвращает token, который нужно использовать для attachment
-      // Для превью создаем base64 из файла для постоянного хранения
+      // Сервер возвращает token и url (для изображений)
+      // Для превью используем url если есть, иначе создаем base64
       if (data.token) {
-        // Создаем base64 для изображений (для превью)
-        let previewUrl = null;
-        if (file.type.startsWith('image/')) {
+        let previewUrl = data.url; // URL от MAX CDN для изображений
+        
+        // Если URL нет (видео/аудио), создаем base64 для превью
+        if (!previewUrl && file.type.startsWith('image/')) {
           try {
             previewUrl = await new Promise((resolve, reject) => {
               const reader = new FileReader();
@@ -1297,8 +1346,8 @@
         
         return {
           token: data.token,
-          previewUrl: previewUrl, // base64 для изображений, null для других файлов
-          type: file.type
+          url: previewUrl, // URL от MAX или base64
+          type: data.type || file.type
         };
       }
       return null;
@@ -1372,7 +1421,7 @@
     
     const preparedAttachments = state.attachments.map((item) => ({
       name: item.name,
-      url: item.url,
+      token: item.token, // Только токен для отправки на сервер
       type: item.type,
     }));
     
@@ -1577,26 +1626,53 @@
       showUploadProgress(files.length);
       
       const mapped = await Promise.all(files.map(async (file, index) => {
-        // Проверка размера файла
-        const maxSize = 10 * 1024 * 1024; // 10 MB
-        if (file.size > maxSize) {
-          console.error(`File ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-          updateUploadProgress(index, 'error', `Файл слишком большой (макс 10 МБ)`);
+        // Безопасная валидация типов файлов
+        const allowedTypes = {
+          'image/png': { maxSize: 10 * 1024 * 1024, label: 'PNG' },
+          'image/jpeg': { maxSize: 10 * 1024 * 1024, label: 'JPEG' },
+          'video/mp4': { maxSize: 100 * 1024 * 1024, label: 'MP4' },
+          'audio/mpeg': { maxSize: 20 * 1024 * 1024, label: 'MP3' }
+        };
+        
+        // Проверка типа файла
+        if (!allowedTypes[file.type]) {
+          console.error(`File ${file.name} has unsupported type: ${file.type}`);
+          updateUploadProgress(index, 'error', `Разрешены только: PNG, JPEG, MP4, MP3`);
           return null;
         }
         
-        // Проверка типа файла
-        const allowedTypes = [
-          'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-          'video/mp4', 'video/webm',
-          'application/pdf', 'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain'
-        ];
+        // Проверка расширения файла (защита от двойных расширений)
+        const fileName = file.name.toLowerCase();
+        const validExtensions = {
+          'image/png': ['.png'],
+          'image/jpeg': ['.jpg', '.jpeg'],
+          'video/mp4': ['.mp4'],
+          'audio/mpeg': ['.mp3']
+        };
         
-        if (!allowedTypes.includes(file.type) && file.type !== 'application/octet-stream') {
-          console.error(`File ${file.name} has unsupported type: ${file.type}`);
-          updateUploadProgress(index, 'error', `Неподдерживаемый тип файла`);
+        const allowedExts = validExtensions[file.type] || [];
+        const hasValidExt = allowedExts.some(ext => fileName.endsWith(ext));
+        
+        if (!hasValidExt) {
+          console.error(`File ${file.name} has invalid extension for type ${file.type}`);
+          updateUploadProgress(index, 'error', `Неверное расширение файла`);
+          return null;
+        }
+        
+        // Проверка на двойное расширение (file.jpg.exe)
+        const parts = fileName.split('.');
+        if (parts.length > 2) {
+          console.error(`File ${file.name} has suspicious double extension`);
+          updateUploadProgress(index, 'error', `Подозрительное имя файла`);
+          return null;
+        }
+        
+        // Проверка размера файла
+        const maxSize = allowedTypes[file.type].maxSize;
+        if (file.size > maxSize) {
+          const maxMB = (maxSize / 1024 / 1024).toFixed(0);
+          console.error(`File ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          updateUploadProgress(index, 'error', `Макс ${maxMB} МБ для ${allowedTypes[file.type].label}`);
           return null;
         }
         
@@ -1615,8 +1691,8 @@
         return {
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: file.name,
-          type: uploadResult.type || file.type || "application/octet-stream",
-          url: uploadResult.previewUrl, // Локальное превью для отображения
+          type: uploadResult.type || file.type,
+          url: uploadResult.url, // URL от MAX CDN или base64
           token: uploadResult.token, // Токен для отправки через API
         };
       }));
