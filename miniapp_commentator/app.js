@@ -1170,7 +1170,6 @@
             attachmentsWrap.appendChild(chip);
           }
         }
-        }
         node.querySelector(".bubble__text").after(attachmentsWrap);
       }
       node.classList.toggle("is-selected", !!item.selected);
