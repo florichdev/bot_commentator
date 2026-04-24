@@ -498,18 +498,29 @@
       normalized.attachments = normalized.attachments.map(att => {
         const apiBase = state.apiBase || getApiBase();
         
-        // Если есть прямой URL к MAX CDN, заменяем на прокси
-        if (att.url && att.url.startsWith('https://i.oneme.ru/i?r=')) {
-          // Извлекаем токен из URL
-          const urlObj = new URL(att.url);
-          const token = urlObj.searchParams.get('r');
-          if (token) {
+        // Если есть прямой URL к MAX CDN, но есть токен - используем токен
+        if (att.url && att.url.startsWith('https://i.oneme.ru/i?r=') && att.token) {
+          const proxyUrl = `${apiBase}/api/media/${encodeURIComponent(att.token)}`;
+          console.log(`[DEBUG] Replaced direct MAX CDN URL with proxy (using token): ${proxyUrl.substring(0, 80)}...`);
+          return {
+            ...att,
+            url: proxyUrl
+          };
+        }
+        
+        // Если есть прямой URL к MAX CDN, но нет токена - извлекаем токен из URL
+        if (att.url && att.url.startsWith('https://i.oneme.ru/i?r=') && !att.token) {
+          // Извлекаем токен из URL вручную (не через URLSearchParams, чтобы избежать декодирования)
+          const match = att.url.match(/[?&]r=([^&]+)/);
+          if (match && match[1]) {
+            // Декодируем URL-encoded токен
+            const token = decodeURIComponent(match[1]);
             const proxyUrl = `${apiBase}/api/media/${encodeURIComponent(token)}`;
-            console.log(`[DEBUG] Replaced direct MAX CDN URL with proxy: ${proxyUrl.substring(0, 80)}...`);
+            console.log(`[DEBUG] Replaced direct MAX CDN URL with proxy (extracted token): ${proxyUrl.substring(0, 80)}...`);
             return {
               ...att,
               url: proxyUrl,
-              token: token // Сохраняем токен если его не было
+              token: token
             };
           }
         }
