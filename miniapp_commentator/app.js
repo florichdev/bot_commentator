@@ -1110,7 +1110,8 @@
         attachmentsWrap.className = "bubble__attachments";
         console.log(`[DEBUG] Rendering ${item.attachments.length} attachments for comment ${item.id}`);
         for (const file of item.attachments) {
-          console.log(`[DEBUG] Attachment:`, { name: file.name, type: file.type, photo_id: file.photo_id, token: file.token });
+          console.log(`[DEBUG] Attachment:`, { name: file.name, type: file.type, photo_id: file.photo_id, message_id: file.message_id, token: file.token });
+          console.log(`[DEBUG] Full attachment object:`, file);
           const isImage = file.type && file.type.startsWith('image/');
           const isVideo = file.type && file.type.startsWith('video/');
           
