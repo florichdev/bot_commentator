@@ -1739,7 +1739,9 @@
         };
       }));
       
-      state.attachments = mapped.filter(Boolean); // Убираем null (неудачные загрузки)
+      // Добавляем новые файлы к существующим (не заменяем!)
+      const newFiles = mapped.filter(Boolean); // Убираем null (неудачные загрузки)
+      state.attachments = [...state.attachments, ...newFiles];
       console.log("[DEBUG] Files uploaded, state.attachments:", state.attachments);
       console.log("[DEBUG] state.attachments length:", state.attachments.length);
       console.log("[DEBUG] state.attachments JSON:", JSON.stringify(state.attachments));
