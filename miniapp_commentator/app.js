@@ -494,26 +494,34 @@
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     } else {
-      // Преобразуем attachments: используем preview_url для отображения
+      // Преобразуем attachments: создаем URL для отображения
+      const apiBase = state.apiBase || getApiBase();
+      
       normalized.attachments = normalized.attachments.map(att => {
         // Если есть preview_url (локальное превью), используем его
-        if (att.preview_url) {
+        if (att.preview_url && att.preview_url.startsWith('blob:')) {
           return {
             ...att,
             url: att.preview_url
           };
         }
         
-        // Если есть photo_id и token, создаем attachment для MAX API
-        // (это для отображения уже сохраненных комментариев)
-        if (att.photo_id && att.token) {
-          // Для отображения используем MAX CDN URL
-          // MAX API автоматически создаст URL из photo_id
+        // Если есть token, создаем URL через прокси
+        if (att.token) {
+          const proxyUrl = `${apiBase}/api/media/${encodeURIComponent(att.token)}`;
+          return {
+            ...att,
+            url: proxyUrl
+          };
+        }
+        
+        // Если есть только URL, используем его
+        if (att.url) {
           return att;
         }
         
         return att;
-      }).filter(att => att.url || att.preview_url || att.photo_id); // Удаляем вложения без способа отображения
+      }).filter(att => att.url || att.token); // Удаляем вложения без способа отображения
     }
     return normalized;
   }
@@ -1134,11 +1142,11 @@
           // Определяем URL для отображения
           let displayUrl = file.url || file.preview_url;
           
-          // Если есть photo_id и token, создаем MAX CDN URL
-          if (!displayUrl && file.photo_id && file.token) {
-            // Используем MAX CDN URL напрямую
-            displayUrl = `https://i.oneme.ru/i?r=${encodeURIComponent(file.token)}`;
-            console.log(`[DEBUG] Created MAX CDN URL from photo_id and token: ${displayUrl.substring(0, 80)}...`);
+          // Если есть token но нет URL, создаем URL через прокси
+          if (!displayUrl && file.token) {
+            const apiBase = state.apiBase || getApiBase();
+            displayUrl = `${apiBase}/api/media/${encodeURIComponent(file.token)}`;
+            console.log(`[DEBUG] Created proxy URL from token: ${displayUrl.substring(0, 80)}...`);
           }
           
           // Показываем превью для изображений
