@@ -2463,15 +2463,6 @@
     }
     render();
     syncScrollDownButton();
-    if (state.apiBase) {
-      apiListComments().then((items) => {
-        if (items) {
-          state.comments = items;
-          render();
-          syncScrollDownButton();
-        }
-      });
-    }
   }
 
   function setupViewportHeightSync() {
