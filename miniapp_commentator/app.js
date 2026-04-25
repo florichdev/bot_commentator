@@ -61,6 +61,9 @@
     deleteForMeBtn: document.getElementById("deleteForMeBtn"),
     deleteForAllBtn: document.getElementById("deleteForAllBtn"),
     deleteCancelBtn: document.getElementById("deleteCancelBtn"),
+    clearModal: document.getElementById("clearModal"),
+    clearConfirmBtn: document.getElementById("clearConfirmBtn"),
+    clearCancelBtn: document.getElementById("clearCancelBtn"),
   };
   const THEME_KEY = "max-commentator:theme";
   const BG_KEY = "max-commentator:bg";
@@ -492,6 +495,7 @@
     normalized.reactedBy = normalized.reactedBy && typeof normalized.reactedBy === "object" ? normalized.reactedBy : {};
     normalized.replyTo = normalized.replyTo || null;
     normalized.photo_url = normalized.photo_url || null; // Сохраняем аватарку
+    normalized.selected = normalized.selected || false; // Сохраняем состояние выбора
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     } else {
@@ -687,8 +691,24 @@
     
     const serverComments = await apiListComments();
     if (serverComments && serverComments.length >= 0) {
-      // Всегда обновляем из сервера (даже если пусто)
-      state.comments = serverComments.map(normalizeComment);
+      // Сохраняем текущее состояние выбора перед обновлением
+      const selectedMap = {};
+      state.comments.forEach(comment => {
+        if (comment.selected) {
+          selectedMap[comment.id] = true;
+        }
+      });
+      
+      // Обновляем из сервера и восстанавливаем состояние выбора
+      state.comments = serverComments.map(serverComment => {
+        const normalized = normalizeComment(serverComment);
+        // Восстанавливаем selected если был выбран ранее
+        if (selectedMap[normalized.id]) {
+          normalized.selected = true;
+        }
+        return normalized;
+      });
+      
       saveComments();
       render();
     }
@@ -726,15 +746,16 @@
             }
           }
           
-          // Мерджим комментарии: обновляем реакции с сервера
+          // Мерджим комментарии: обновляем реакции с сервера и сохраняем selected
           const mergedComments = serverComments.map(serverComment => {
             const localComment = state.comments.find(c => c.id === serverComment.id);
             if (localComment) {
-              // Используем серверные реакции (они актуальнее)
+              // Используем серверные реакции (они актуальнее) и сохраняем локальный selected
               return {
                 ...serverComment,
                 reactions: serverComment.reactions || {},
-                reactedBy: serverComment.reactedBy || {}
+                reactedBy: serverComment.reactedBy || {},
+                selected: localComment.selected || false // Сохраняем состояние выбора
               };
             }
             return serverComment;
@@ -1029,8 +1050,8 @@
     }
   }
 
-  async function sendMediaToPersonalChat(identifier, fileName, mediaType, authorName, commentText) {
-    console.log(`[DEBUG] sendMediaToPersonalChat called:`, { identifier, fileName, mediaType, authorName, commentText });
+  async function sendMediaToPersonalChat(identifier, fileName, mediaType, authorName, commentText, authorId) {
+    console.log(`[DEBUG] sendMediaToPersonalChat called:`, { identifier, fileName, mediaType, authorName, commentText, authorId });
     
     if (!state.apiBase || !isAuthorizedUser()) {
       console.error("Cannot send media: not authorized or no API base");
@@ -1047,7 +1068,8 @@
           file_name: fileName,
           media_type: mediaType,
           author_name: authorName || "Пользователь",
-          comment_text: commentText || ""
+          comment_text: commentText || "",
+          mentioned_user_id: authorId || null
         })
       });
       
@@ -1117,6 +1139,7 @@
       border-radius: 8px;
       z-index: 10000;
       font-size: 14px;
+      text-align: center;
       animation: fadeInOut 3s ease-in-out;
     `;
     
@@ -1294,7 +1317,7 @@
             img.addEventListener("click", (e) => {
               e.preventDefault();
               // Отправляем медиа в личный чат через бота
-              sendMediaToPersonalChat(identifier, file.name, 'image', item.authorName, item.text);
+              sendMediaToPersonalChat(identifier, file.name, 'image', item.authorName, item.text, item.authorId);
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
@@ -1302,19 +1325,46 @@
             // Превью для видео
             const videoWrap = document.createElement("div");
             videoWrap.className = "attachImage attachImage--video";
-            videoWrap.style.cssText = "position: relative; background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 150px;";
+            videoWrap.style.cssText = "position: relative; background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 150px; overflow: hidden;";
             
-            // Иконка воспроизведения
+            // Создаем video элемент для получения первого кадра
+            const video = document.createElement("video");
+            video.style.cssText = "width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;";
+            video.muted = true;
+            video.preload = "metadata";
+            
+            // Пытаемся загрузить видео для превью
+            if (state.mediaCache[identifier]) {
+              video.src = state.mediaCache[identifier];
+              video.currentTime = 0.1; // Берем кадр с 0.1 секунды
+            } else {
+              // Загружаем через прокси
+              const apiBase = state.apiBase || getApiBase();
+              fetch(`${apiBase}/api/media/${encodeURIComponent(identifier)}`)
+                .then(resp => resp.json())
+                .then(data => {
+                  if (data.ok && data.data_url) {
+                    state.mediaCache[identifier] = data.data_url;
+                    video.src = data.data_url;
+                    video.currentTime = 0.1;
+                  }
+                })
+                .catch(err => console.warn("Failed to load video preview:", err));
+            }
+            
+            videoWrap.appendChild(video);
+            
+            // Иконка воспроизведения поверх видео
             const playIcon = document.createElement("div");
             playIcon.innerHTML = "▶️";
-            playIcon.style.cssText = "font-size: 48px; opacity: 0.9;";
+            playIcon.style.cssText = "font-size: 48px; opacity: 0.9; position: relative; z-index: 1; pointer-events: none;";
             
             videoWrap.appendChild(playIcon);
             
             videoWrap.addEventListener("click", (e) => {
               e.preventDefault();
               // Отправляем видео в личный чат через бота
-              sendMediaToPersonalChat(identifier, file.name, 'video', item.authorName, item.text);
+              sendMediaToPersonalChat(identifier, file.name, 'video', item.authorName, item.text, item.authorId);
             });
             
             videoWrap.style.cursor = "pointer";
@@ -1330,7 +1380,7 @@
               e.preventDefault();
               // Отправляем медиа в личный чат через бота
               const mediaType = file.type && file.type.startsWith('audio/') ? 'audio' : 'file';
-              sendMediaToPersonalChat(identifier, file.name, mediaType, item.authorName, item.text);
+              sendMediaToPersonalChat(identifier, file.name, mediaType, item.authorName, item.text, item.authorId);
             });
             attachmentsWrap.appendChild(chip);
           }
@@ -2098,7 +2148,12 @@
     checkAdminRights();
 
     el.clearBtn.addEventListener("click", async () => {
-      // Убираем confirm, сразу очищаем
+      // Показываем модальное окно подтверждения
+      el.clearModal.hidden = false;
+    });
+    
+    el.clearConfirmBtn?.addEventListener("click", async () => {
+      el.clearModal.hidden = true;
       const clearedRemote = await apiClearPostComments();
       if (!clearedRemote) {
         state.comments = [];
@@ -2109,6 +2164,14 @@
       saveComments();
       render();
       syncScrollDownButton();
+    });
+    
+    el.clearCancelBtn?.addEventListener("click", () => {
+      el.clearModal.hidden = true;
+    });
+    
+    el.clearModal?.querySelector(".deleteModal__overlay")?.addEventListener("click", () => {
+      el.clearModal.hidden = true;
     });
 
     // Обработчики для модального окна удаления

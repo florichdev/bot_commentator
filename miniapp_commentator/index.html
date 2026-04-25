@@ -190,6 +190,23 @@
     </div>
   </div>
 
+  <div id="clearModal" class="deleteModal" hidden>
+    <div class="deleteModal__overlay"></div>
+    <div class="deleteModal__content" style="max-width: 320px;">
+      <div class="deleteModal__body" style="padding: 24px; text-align: center;">
+        <p class="deleteModal__text" style="margin: 0 0 20px 0; font-size: 16px;">Удалить все комментарии?</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button id="clearConfirmBtn" class="deleteModal__btn deleteModal__btn--danger" type="button" style="flex: 1;">
+            Удалить
+          </button>
+          <button id="clearCancelBtn" class="deleteModal__btn deleteModal__btn--secondary" type="button" style="flex: 1;">
+            Отмена
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <template id="commentTemplate">
     <li class="msg">
       <div class="msg__avatar" aria-hidden="true"></div>
