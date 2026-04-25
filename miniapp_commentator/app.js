@@ -1913,7 +1913,7 @@
       el.fileInput.click();
     });
     el.fileInput?.addEventListener("change", async () => {
-      const files = Array.from(el.fileInput.files || []); // Разрешаем множественный выбор
+      const files = Array.from(el.fileInput.files || []).slice(0, 1); // Только 1 файл
       
       if (!files.length) return;
       
