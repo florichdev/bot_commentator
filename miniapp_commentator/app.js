@@ -495,8 +495,8 @@
       normalized.attachments = [];
     } else {
       // Оставляем attachments как есть - URL будет загружаться динамически при рендеринге
-      // Сохраняем только те вложения, у которых есть token или photo_id
-      normalized.attachments = normalized.attachments.filter(att => att.token || att.photo_id || att.preview_url);
+      // Сохраняем только те вложения, у которых есть token, photo_id или local_file_id
+      normalized.attachments = normalized.attachments.filter(att => att.token || att.photo_id || att.local_file_id || att.preview_url);
     }
     return normalized;
   }
@@ -1372,7 +1372,7 @@
       const data = await resp.json();
       console.log("[DEBUG] Upload response:", data);
       
-      // Сервер возвращает token, type, max_api_type, и опционально photo_id
+      // Сервер возвращает token, type, max_api_type, local_file_id и опционально photo_id
       if (data.token) {
         // Создаем локальное превью для немедленного отображения
         const previewUrl = URL.createObjectURL(file);
@@ -1380,6 +1380,7 @@
         return {
           token: data.token,
           photo_id: data.photo_id, // Для изображений
+          local_file_id: data.local_file_id, // ID локального файла на сервере
           type: data.type || file.type,
           max_api_type: data.max_api_type, // image, video, audio
           preview_url: previewUrl, // Локальное превью для немедленного отображения
@@ -1458,6 +1459,7 @@
       name: item.name,
       token: item.token, // Токен для MAX API
       photo_id: item.photo_id, // ID фото (если есть)
+      local_file_id: item.local_file_id, // ID локального файла на сервере
       type: item.type, // MIME тип
       max_api_type: item.max_api_type, // image, video, audio
     }));
