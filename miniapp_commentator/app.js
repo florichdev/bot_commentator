@@ -1735,6 +1735,7 @@
           preview_url: uploadResult.preview_url, // Локальное превью для отображения
           token: uploadResult.token, // Токен для отправки через API
           photo_id: uploadResult.photo_id, // Для изображений
+          local_file_id: uploadResult.local_file_id, // ID локального файла на сервере
         };
       }));
       
