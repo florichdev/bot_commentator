@@ -1114,8 +1114,8 @@
           const isImage = file.type && file.type.startsWith('image/');
           const isVideo = file.type && file.type.startsWith('video/');
           
-          // Определяем идентификатор для загрузки (приоритет: photo_id > token)
-          const identifier = file.photo_id || file.token;
+          // Определяем идентификатор для загрузки (приоритет: local_file_id > photo_id > token)
+          const identifier = file.local_file_id || file.photo_id || file.token;
           
           // Показываем превью для изображений
           if (isImage && identifier) {
