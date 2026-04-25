@@ -1029,8 +1029,8 @@
     }
   }
 
-  async function sendMediaToPersonalChat(identifier, fileName, mediaType) {
-    console.log(`[DEBUG] sendMediaToPersonalChat called:`, { identifier, fileName, mediaType });
+  async function sendMediaToPersonalChat(identifier, fileName, mediaType, authorName, commentText) {
+    console.log(`[DEBUG] sendMediaToPersonalChat called:`, { identifier, fileName, mediaType, authorName, commentText });
     
     if (!state.apiBase || !isAuthorizedUser()) {
       console.error("Cannot send media: not authorized or no API base");
@@ -1045,7 +1045,9 @@
         body: JSON.stringify({
           identifier: identifier,
           file_name: fileName,
-          media_type: mediaType
+          media_type: mediaType,
+          author_name: authorName || "Пользователь",
+          comment_text: commentText || ""
         })
       });
       
@@ -1054,14 +1056,14 @@
       if (resp.ok && data.ok) {
         console.log("[DEBUG] Media sent to personal chat successfully");
         // Показываем уведомление пользователю
-        showNotification("✅ Медиа отправлено в личный чат");
+        showNotification("Медиа отправлено");
       } else {
         console.error("Failed to send media:", data.error);
-        showNotification("❌ Ошибка отправки медиа");
+        showNotification("Ошибка отправки медиа");
       }
     } catch (error) {
       console.error("Error sending media to personal chat:", error);
-      showNotification("❌ Ошибка отправки медиа");
+      showNotification("Ошибка отправки медиа");
     }
   }
 
@@ -1088,14 +1090,14 @@
       
       if (resp.ok && data.ok) {
         console.log("[DEBUG] User mention sent to personal chat successfully");
-        showNotification("✅ Упоминание отправлено в личный чат");
+        showNotification("Профиль отправлен");
       } else {
         console.error("Failed to send mention:", data.error);
-        showNotification("❌ Ошибка отправки упоминания");
+        showNotification("Ошибка отправки профиля");
       }
     } catch (error) {
       console.error("Error sending mention to personal chat:", error);
-      showNotification("❌ Ошибка отправки упоминания");
+      showNotification("Ошибка отправки профиля");
     }
   }
 
@@ -1292,22 +1294,43 @@
             img.addEventListener("click", (e) => {
               e.preventDefault();
               // Отправляем медиа в личный чат через бота
-              sendMediaToPersonalChat(identifier, file.name, 'image');
+              sendMediaToPersonalChat(identifier, file.name, 'image', item.authorName, item.text);
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
+          } else if (isVideo && identifier) {
+            // Превью для видео
+            const videoWrap = document.createElement("div");
+            videoWrap.className = "attachImage attachImage--video";
+            videoWrap.style.cssText = "position: relative; background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 150px;";
+            
+            // Иконка воспроизведения
+            const playIcon = document.createElement("div");
+            playIcon.innerHTML = "▶️";
+            playIcon.style.cssText = "font-size: 48px; opacity: 0.9;";
+            
+            videoWrap.appendChild(playIcon);
+            
+            videoWrap.addEventListener("click", (e) => {
+              e.preventDefault();
+              // Отправляем видео в личный чат через бота
+              sendMediaToPersonalChat(identifier, file.name, 'video', item.authorName, item.text);
+            });
+            
+            videoWrap.style.cursor = "pointer";
+            attachmentsWrap.appendChild(videoWrap);
           } else if (identifier) {
-            // Кликабельная ссылка на файл
+            // Кликабельная ссылка на файл (аудио и другие типы)
             const chip = document.createElement("div");
             chip.className = "attachChip";
             chip.style.cursor = "pointer";
-            const icon = isImage ? "🖼️" : (isVideo ? "🎬" : "📎");
+            const icon = file.type && file.type.startsWith('audio/') ? "🎵" : "📎";
             chip.textContent = `${icon} ${file.name || "файл"}`;
             chip.addEventListener("click", (e) => {
               e.preventDefault();
               // Отправляем медиа в личный чат через бота
-              const mediaType = isVideo ? 'video' : (file.type && file.type.startsWith('audio/') ? 'audio' : 'file');
-              sendMediaToPersonalChat(identifier, file.name, mediaType);
+              const mediaType = file.type && file.type.startsWith('audio/') ? 'audio' : 'file';
+              sendMediaToPersonalChat(identifier, file.name, mediaType, item.authorName, item.text);
             });
             attachmentsWrap.appendChild(chip);
           }
@@ -1346,7 +1369,21 @@
       if (item.replyTo) {
         const replyLine = document.createElement("div");
         replyLine.className = "replyPreview replyPreview--inBubble";
-        replyLine.innerHTML = `<span class="replyPreview__author">${item.replyTo.author}</span><span class="replyPreview__text">${item.replyTo.text}</span>`;
+        
+        // Формируем текст с иконками вложений
+        let replyText = item.replyTo.text || "";
+        if (item.replyTo.attachments && item.replyTo.attachments.length > 0) {
+          const attachmentIcons = item.replyTo.attachments.map(att => {
+            if (att.type && att.type.startsWith('image/')) return '🖼️';
+            if (att.type && att.type.startsWith('video/')) return '🎬';
+            if (att.type && att.type.startsWith('audio/')) return '🎵';
+            return '📎';
+          }).join(' ');
+          
+          replyText = replyText ? `${attachmentIcons} ${replyText}` : attachmentIcons;
+        }
+        
+        replyLine.innerHTML = `<span class="replyPreview__author">${item.replyTo.author}</span><span class="replyPreview__text">${replyText}</span>`;
         node.querySelector(".bubble__text").before(replyLine);
       }
 
@@ -1361,6 +1398,7 @@
           id: item.id,
           author: item.authorName || "Пользователь",
           text: String(item.text || "").slice(0, 80),
+          attachments: item.attachments || [], // Добавляем вложения
         };
         syncReplyPreview();
         el.commentInput.focus();
@@ -1384,7 +1422,21 @@
     }
     el.replyPreview.hidden = false;
     el.replyPreviewAuthor.textContent = state.replyTo.author;
-    el.replyPreviewText.textContent = state.replyTo.text;
+    
+    // Формируем текст с информацией о вложениях
+    let textContent = state.replyTo.text;
+    if (state.replyTo.attachments && state.replyTo.attachments.length > 0) {
+      const attachmentIcons = state.replyTo.attachments.map(att => {
+        if (att.type && att.type.startsWith('image/')) return '🖼️';
+        if (att.type && att.type.startsWith('video/')) return '🎬';
+        if (att.type && att.type.startsWith('audio/')) return '🎵';
+        return '📎';
+      }).join(' ');
+      
+      textContent = textContent ? `${attachmentIcons} ${textContent}` : attachmentIcons;
+    }
+    
+    el.replyPreviewText.textContent = textContent;
   }
 
   function syncScrollDownButton() {
@@ -1811,7 +1863,7 @@
       el.fileInput.click();
     });
     el.fileInput?.addEventListener("change", async () => {
-      const files = Array.from(el.fileInput.files || []).slice(0, 1); // Ограничение: только 1 файл
+      const files = Array.from(el.fileInput.files || []); // Разрешаем множественный выбор
       
       if (!files.length) return;
       
@@ -1971,6 +2023,7 @@
           id: item.id,
           author: item.authorName || "Пользователь",
           text: String(item.text || "").slice(0, 80),
+          attachments: item.attachments || [], // Добавляем вложения
         };
         syncReplyPreview();
         el.commentInput.focus();
@@ -2045,8 +2098,7 @@
     checkAdminRights();
 
     el.clearBtn.addEventListener("click", async () => {
-      const ok = confirm("Очистить все комментарии для этого поста?");
-      if (!ok) return;
+      // Убираем confirm, сразу очищаем
       const clearedRemote = await apiClearPostComments();
       if (!clearedRemote) {
         state.comments = [];
