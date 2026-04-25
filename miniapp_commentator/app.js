@@ -1029,6 +1029,102 @@
     }
   }
 
+  async function sendMediaToPersonalChat(identifier, fileName, mediaType) {
+    console.log(`[DEBUG] sendMediaToPersonalChat called:`, { identifier, fileName, mediaType });
+    
+    if (!state.apiBase || !isAuthorizedUser()) {
+      console.error("Cannot send media: not authorized or no API base");
+      return;
+    }
+    
+    try {
+      // Отправляем запрос на сервер, который перешлет медиа в личный чат
+      const resp = await fetch(`${state.apiBase}/api/send-media-to-user`, {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          identifier: identifier,
+          file_name: fileName,
+          media_type: mediaType
+        })
+      });
+      
+      const data = await resp.json();
+      
+      if (resp.ok && data.ok) {
+        console.log("[DEBUG] Media sent to personal chat successfully");
+        // Показываем уведомление пользователю
+        showNotification("✅ Медиа отправлено в личный чат");
+      } else {
+        console.error("Failed to send media:", data.error);
+        showNotification("❌ Ошибка отправки медиа");
+      }
+    } catch (error) {
+      console.error("Error sending media to personal chat:", error);
+      showNotification("❌ Ошибка отправки медиа");
+    }
+  }
+
+  async function sendUserMentionToPersonalChat(userId, userName) {
+    console.log(`[DEBUG] sendUserMentionToPersonalChat called:`, { userId, userName });
+    
+    if (!state.apiBase || !isAuthorizedUser()) {
+      console.error("Cannot send mention: not authorized or no API base");
+      return;
+    }
+    
+    try {
+      // Отправляем запрос на сервер, который перешлет упоминание в личный чат
+      const resp = await fetch(`${state.apiBase}/api/send-user-mention`, {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          mentioned_user_id: userId,
+          mentioned_user_name: userName
+        })
+      });
+      
+      const data = await resp.json();
+      
+      if (resp.ok && data.ok) {
+        console.log("[DEBUG] User mention sent to personal chat successfully");
+        showNotification("✅ Упоминание отправлено в личный чат");
+      } else {
+        console.error("Failed to send mention:", data.error);
+        showNotification("❌ Ошибка отправки упоминания");
+      }
+    } catch (error) {
+      console.error("Error sending mention to personal chat:", error);
+      showNotification("❌ Ошибка отправки упоминания");
+    }
+  }
+
+  function showNotification(message) {
+    // Создаем простое уведомление
+    const notification = document.createElement("div");
+    notification.className = "toast-notification";
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      z-index: 10000;
+      font-size: 14px;
+      animation: fadeInOut 3s ease-in-out;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
+
   function formatTime(iso) {
     try {
       // Парсим дату и конвертируем в МСК (UTC+3)
@@ -1102,8 +1198,28 @@
       node.id = `comment-${item.id}`;
       const isMine = isAuthorizedUser() && item.authorId === state.user.id;
       node.classList.add(isMine ? "msg--mine" : "msg--other");
-      setAvatar(node.querySelector(".msg__avatar"), item.authorId, item.authorName, item.photo_url);
-      node.querySelector(".bubble__author").textContent = item.authorName || "Пользователь";
+      
+      const avatarEl = node.querySelector(".msg__avatar");
+      setAvatar(avatarEl, item.authorId, item.authorName, item.photo_url);
+      
+      const authorEl = node.querySelector(".bubble__author");
+      authorEl.textContent = item.authorName || "Пользователь";
+      
+      // Добавляем обработчики кликов на автора и аватар
+      if (!isMine) {
+        avatarEl.style.cursor = "pointer";
+        authorEl.style.cursor = "pointer";
+        
+        const handleUserClick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          sendUserMentionToPersonalChat(item.authorId, item.authorName);
+        };
+        
+        avatarEl.addEventListener("click", handleUserClick);
+        authorEl.addEventListener("click", handleUserClick);
+      }
+      
       node.querySelector(".bubble__time").textContent = formatTime(item.createdAt);
       node.querySelector(".bubble__text").textContent = item.text;
       if (item.attachments?.length) {
@@ -1175,11 +1291,8 @@
             
             img.addEventListener("click", (e) => {
               e.preventDefault();
-              // Открываем изображение в новой вкладке (data URL)
-              if (img.src && img.src.startsWith('data:')) {
-                const w = window.open();
-                w.document.write(`<img src="${img.src}" style="max-width:100%;height:auto;">`);
-              }
+              // Отправляем медиа в личный чат через бота
+              sendMediaToPersonalChat(identifier, file.name, 'image');
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
@@ -1192,8 +1305,9 @@
             chip.textContent = `${icon} ${file.name || "файл"}`;
             chip.addEventListener("click", (e) => {
               e.preventDefault();
-              const apiBase = state.apiBase || getApiBase();
-              window.open(`${apiBase}/api/media/${encodeURIComponent(identifier)}`, "_blank", "noopener");
+              // Отправляем медиа в личный чат через бота
+              const mediaType = isVideo ? 'video' : (file.type && file.type.startsWith('audio/') ? 'audio' : 'file');
+              sendMediaToPersonalChat(identifier, file.name, mediaType);
             });
             attachmentsWrap.appendChild(chip);
           }
