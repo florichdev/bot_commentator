@@ -494,49 +494,26 @@
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     } else {
-      // Преобразуем attachments: создаем URL из токена если его нет
+      // Преобразуем attachments: используем preview_url для отображения
       normalized.attachments = normalized.attachments.map(att => {
-        const apiBase = state.apiBase || getApiBase();
-        
-        // Если есть прямой URL к MAX CDN, но есть токен - используем токен
-        if (att.url && att.url.startsWith('https://i.oneme.ru/i?r=') && att.token) {
-          const proxyUrl = `${apiBase}/api/media/${encodeURIComponent(att.token)}`;
-          console.log(`[DEBUG] Replaced direct MAX CDN URL with proxy (using token): ${proxyUrl.substring(0, 80)}...`);
+        // Если есть preview_url (локальное превью), используем его
+        if (att.preview_url) {
           return {
             ...att,
-            url: proxyUrl
+            url: att.preview_url
           };
         }
         
-        // Если есть прямой URL к MAX CDN, но нет токена - извлекаем токен из URL
-        if (att.url && att.url.startsWith('https://i.oneme.ru/i?r=') && !att.token) {
-          // Извлекаем токен из URL вручную (не через URLSearchParams, чтобы избежать декодирования)
-          const match = att.url.match(/[?&]r=([^&]+)/);
-          if (match && match[1]) {
-            // Декодируем URL-encoded токен
-            const token = decodeURIComponent(match[1]);
-            const proxyUrl = `${apiBase}/api/media/${encodeURIComponent(token)}`;
-            console.log(`[DEBUG] Replaced direct MAX CDN URL with proxy (extracted token): ${proxyUrl.substring(0, 80)}...`);
-            return {
-              ...att,
-              url: proxyUrl,
-              token: token
-            };
-          }
-        }
-        
-        // Если есть токен, но нет URL (или это blob URL), создаем URL через прокси
-        if (att.token && (!att.url || att.url.startsWith('blob:'))) {
-          const url = `${apiBase}/api/media/${encodeURIComponent(att.token)}`;
-          console.log(`[DEBUG] Created proxy URL from token: ${url.substring(0, 80)}...`);
-          return {
-            ...att,
-            url: url
-          };
+        // Если есть photo_id и token, создаем attachment для MAX API
+        // (это для отображения уже сохраненных комментариев)
+        if (att.photo_id && att.token) {
+          // Для отображения используем MAX CDN URL
+          // MAX API автоматически создаст URL из photo_id
+          return att;
         }
         
         return att;
-      }).filter(att => att.url || att.token); // Удаляем вложения без URL и токена
+      }).filter(att => att.url || att.preview_url || att.photo_id); // Удаляем вложения без способа отображения
     }
     return normalized;
   }
@@ -1150,24 +1127,35 @@
         attachmentsWrap.className = "bubble__attachments";
         console.log(`[DEBUG] Rendering ${item.attachments.length} attachments for comment ${item.id}`);
         for (const file of item.attachments) {
-          console.log(`[DEBUG] Attachment:`, { name: file.name, type: file.type, url: file.url?.substring(0, 80) });
+          console.log(`[DEBUG] Attachment:`, { name: file.name, type: file.type, photo_id: file.photo_id, token: file.token });
           const isImage = file.type && file.type.startsWith('image/');
+          const isVideo = file.type && file.type.startsWith('video/');
+          
+          // Определяем URL для отображения
+          let displayUrl = file.url || file.preview_url;
+          
+          // Если есть photo_id и token, создаем MAX CDN URL
+          if (!displayUrl && file.photo_id && file.token) {
+            // Используем MAX CDN URL напрямую
+            displayUrl = `https://i.oneme.ru/i?r=${encodeURIComponent(file.token)}`;
+            console.log(`[DEBUG] Created MAX CDN URL from photo_id and token: ${displayUrl.substring(0, 80)}...`);
+          }
           
           // Показываем превью для изображений
-          if (isImage && file.url) {
+          if (isImage && displayUrl) {
             // Предпросмотр изображения
             const imgWrap = document.createElement("div");
             imgWrap.className = "attachImage";
             const img = document.createElement("img");
-            img.src = file.url;
+            img.src = displayUrl;
             img.alt = file.name || "изображение";
             img.loading = "lazy";
             
-            console.log(`[DEBUG] Creating image element with src: ${file.url.substring(0, 80)}...`);
+            console.log(`[DEBUG] Creating image element with src: ${displayUrl.substring(0, 80)}...`);
             
             // Обработка ошибки загрузки изображения
             img.addEventListener("error", (e) => {
-              console.warn("Image failed to load, showing as link:", file.url);
+              console.warn("Image failed to load, showing as link:", displayUrl);
               // Заменяем на ссылку при ошибке загрузки
               const chip = document.createElement("div");
               chip.className = "attachChip";
@@ -1175,7 +1163,7 @@
               chip.textContent = `🖼️ ${file.name || "изображение"}`;
               chip.addEventListener("click", (e) => {
                 e.preventDefault();
-                window.open(file.url, "_blank", "noopener");
+                window.open(displayUrl, "_blank", "noopener");
               });
               imgWrap.replaceWith(chip);
             });
@@ -1183,20 +1171,20 @@
             img.addEventListener("click", (e) => {
               e.preventDefault();
               // Открываем изображение в новой вкладке
-              window.open(file.url, "_blank", "noopener");
+              window.open(displayUrl, "_blank", "noopener");
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
-          } else if (file.url) {
+          } else if (displayUrl) {
             // Кликабельная ссылка на файл
             const chip = document.createElement("div");
             chip.className = "attachChip";
             chip.style.cursor = "pointer";
-            const icon = isImage ? "🖼️" : "📎";
+            const icon = isImage ? "🖼️" : (isVideo ? "🎬" : "📎");
             chip.textContent = `${icon} ${file.name || "файл"}`;
             chip.addEventListener("click", (e) => {
               e.preventDefault();
-              window.open(file.url, "_blank", "noopener");
+              window.open(displayUrl, "_blank", "noopener");
             });
             attachmentsWrap.appendChild(chip);
           }
@@ -1306,12 +1294,40 @@
     el.attachmentsBar.innerHTML = "";
     el.attachmentsBar.hidden = !state.attachments.length;
     for (const item of state.attachments) {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "attachDraftChip";
-      chip.textContent = `📎 ${item.name}`;
-      chip.dataset.id = item.id;
-      el.attachmentsBar.appendChild(chip);
+      const isImage = item.type && item.type.startsWith('image/');
+      const isVideo = item.type && item.type.startsWith('video/');
+      
+      if (isImage && item.preview_url) {
+        // Показываем превью изображения
+        const preview = document.createElement("div");
+        preview.className = "attachDraftPreview";
+        preview.dataset.id = item.id;
+        preview.innerHTML = `
+          <img src="${item.preview_url}" alt="${item.name}" class="attachDraftPreview__img">
+          <button type="button" class="attachDraftPreview__remove" title="Удалить">×</button>
+        `;
+        el.attachmentsBar.appendChild(preview);
+      } else if (isVideo && item.preview_url) {
+        // Показываем превью видео
+        const preview = document.createElement("div");
+        preview.className = "attachDraftPreview attachDraftPreview--video";
+        preview.dataset.id = item.id;
+        preview.innerHTML = `
+          <video src="${item.preview_url}" class="attachDraftPreview__img" muted></video>
+          <div class="attachDraftPreview__icon">▶️</div>
+          <button type="button" class="attachDraftPreview__remove" title="Удалить">×</button>
+        `;
+        el.attachmentsBar.appendChild(preview);
+      } else {
+        // Показываем название файла для аудио и других типов
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "attachDraftChip";
+        const icon = isVideo ? "🎬" : (item.type && item.type.startsWith('audio/') ? "🎵" : "📎");
+        chip.textContent = `${icon} ${item.name}`;
+        chip.dataset.id = item.id;
+        el.attachmentsBar.appendChild(chip);
+      }
     }
   }
 
@@ -1331,7 +1347,7 @@
         initData = window.__INIT_DATA_FROM_HASH__;
       }
       
-      // Кодируем initData для безопасной передачи (решает проблему с кириллицей)
+      // Кодируем initData для безопасной передачи
       const headers = {};
       if (initData) {
         try {
@@ -1355,21 +1371,19 @@
       }
       
       const data = await resp.json();
-      // Сервер возвращает token
-      // Используем прокси для избежания проблем с URL encoding
+      console.log("[DEBUG] Upload response:", data);
+      
+      // Сервер возвращает token, type, max_api_type, и опционально photo_id
       if (data.token) {
-        // state.apiBase уже установлен при инициализации
-        if (!state.apiBase) {
-          console.error("API base URL not set, cannot create media URL");
-          return null;
-        }
-        
-        const previewUrl = `${state.apiBase}/api/media/${encodeURIComponent(data.token)}`;
+        // Создаем локальное превью для немедленного отображения
+        const previewUrl = URL.createObjectURL(file);
         
         return {
           token: data.token,
-          url: previewUrl, // URL через прокси
-          type: data.type || file.type
+          photo_id: data.photo_id, // Для изображений
+          type: data.type || file.type,
+          max_api_type: data.max_api_type, // image, video, audio
+          preview_url: previewUrl, // Локальное превью для немедленного отображения
         };
       }
       return null;
@@ -1443,8 +1457,10 @@
     
     const preparedAttachments = state.attachments.map((item) => ({
       name: item.name,
-      token: item.token, // Только токен для отправки на сервер
-      type: item.type,
+      token: item.token, // Токен для MAX API
+      photo_id: item.photo_id, // ID фото (если есть)
+      type: item.type, // MIME тип
+      max_api_type: item.max_api_type, // image, video, audio
     }));
     
     console.log("[DEBUG] Prepared attachments:", preparedAttachments.length);
@@ -1714,8 +1730,10 @@
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: file.name,
           type: uploadResult.type || file.type,
-          url: uploadResult.url, // URL от MAX CDN или base64
+          max_api_type: uploadResult.max_api_type, // image, video, audio
+          preview_url: uploadResult.preview_url, // Локальное превью для отображения
           token: uploadResult.token, // Токен для отправки через API
+          photo_id: uploadResult.photo_id, // Для изображений
         };
       }));
       
@@ -1730,11 +1748,25 @@
       if (el.fileInput) el.fileInput.value = '';
     });
     el.attachmentsBar?.addEventListener("click", (e) => {
-      const chip = e.target.closest("[data-id]");
-      if (!chip) return;
-      const id = chip.dataset.id;
-      state.attachments = state.attachments.filter((item) => item.id !== id);
-      renderAttachmentsBar();
+      // Обработка клика на кнопку удаления в превью
+      const removeBtn = e.target.closest(".attachDraftPreview__remove");
+      if (removeBtn) {
+        const preview = removeBtn.closest("[data-id]");
+        if (preview) {
+          const id = preview.dataset.id;
+          state.attachments = state.attachments.filter((item) => item.id !== id);
+          renderAttachmentsBar();
+        }
+        return;
+      }
+      
+      // Обработка клика на chip (старый формат)
+      const chip = e.target.closest(".attachDraftChip[data-id]");
+      if (chip) {
+        const id = chip.dataset.id;
+        state.attachments = state.attachments.filter((item) => item.id !== id);
+        renderAttachmentsBar();
+      }
     });
     el.replyCancelBtn?.addEventListener("click", () => {
       state.replyTo = null;
