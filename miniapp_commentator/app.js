@@ -22,6 +22,7 @@
     bgScheme: "pattern-only",
     attachments: [],
     postLink: "",
+    mediaCache: {}, // Кеш для data URLs изображений по message_id
   };
 
   const el = {
@@ -1132,37 +1133,45 @@
             
             console.log(`[DEBUG] Loading image via proxy for identifier: ${identifier.substring(0, 50)}...`);
             
-            // Загружаем data URL через прокси
-            const apiBase = state.apiBase || getApiBase();
-            fetch(`${apiBase}/api/media/${encodeURIComponent(identifier)}`)
-              .then(resp => {
-                if (!resp.ok) {
-                  throw new Error(`HTTP ${resp.status}`);
-                }
-                return resp.json();
-              })
-              .then(data => {
-                if (data.ok && data.data_url) {
-                  img.src = data.data_url;
-                  console.log(`[DEBUG] Image loaded successfully, data URL size: ${data.data_url.length} chars`);
-                } else {
-                  throw new Error(data.error || "No data URL in response");
-                }
-              })
-              .catch(err => {
-                console.warn("Image failed to load via proxy:", err);
-                // Заменяем на ссылку при ошибке загрузки
-                const chip = document.createElement("div");
-                chip.className = "attachChip";
-                chip.style.cursor = "pointer";
-                chip.textContent = `🖼️ ${file.name || "изображение"}`;
-                chip.addEventListener("click", (e) => {
-                  e.preventDefault();
-                  // Пробуем открыть через прокси
-                  window.open(`${apiBase}/api/media/${encodeURIComponent(identifier)}`, "_blank", "noopener");
+            // Проверяем кеш
+            if (state.mediaCache[identifier]) {
+              console.log(`[DEBUG] Image loaded from cache for ${identifier.substring(0, 30)}...`);
+              img.src = state.mediaCache[identifier];
+            } else {
+              // Загружаем data URL через прокси
+              const apiBase = state.apiBase || getApiBase();
+              fetch(`${apiBase}/api/media/${encodeURIComponent(identifier)}`)
+                .then(resp => {
+                  if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                  }
+                  return resp.json();
+                })
+                .then(data => {
+                  if (data.ok && data.data_url) {
+                    // Сохраняем в кеш
+                    state.mediaCache[identifier] = data.data_url;
+                    img.src = data.data_url;
+                    console.log(`[DEBUG] Image loaded successfully, data URL size: ${data.data_url.length} chars`);
+                  } else {
+                    throw new Error(data.error || "No data URL in response");
+                  }
+                })
+                .catch(err => {
+                  console.warn("Image failed to load via proxy:", err);
+                  // Заменяем на ссылку при ошибке загрузки
+                  const chip = document.createElement("div");
+                  chip.className = "attachChip";
+                  chip.style.cursor = "pointer";
+                  chip.textContent = `🖼️ ${file.name || "изображение"}`;
+                  chip.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    // Пробуем открыть через прокси
+                    window.open(`${apiBase}/api/media/${encodeURIComponent(identifier)}`, "_blank", "noopener");
+                  });
+                  imgWrap.replaceWith(chip);
                 });
-                imgWrap.replaceWith(chip);
-              });
+            }
             
             img.addEventListener("click", (e) => {
               e.preventDefault();
@@ -1398,6 +1407,8 @@
               const mediaData = await mediaResp.json();
               if (mediaData.ok && mediaData.data_url) {
                 previewUrl = mediaData.data_url;
+                // Сохраняем в кеш
+                state.mediaCache[identifier] = previewUrl;
                 console.log(`[DEBUG] Preview loaded for ${identifier.substring(0, 30)}..., size: ${mediaData.data_url.length} chars`);
               }
             }
