@@ -1297,26 +1297,38 @@
       const isImage = item.type && item.type.startsWith('image/');
       const isVideo = item.type && item.type.startsWith('video/');
       
-      if (isImage && item.preview_url) {
+      if (isImage) {
         // Показываем превью изображения
         const preview = document.createElement("div");
         preview.className = "attachDraftPreview";
         preview.dataset.id = item.id;
+        
+        // Если есть preview_url - показываем, иначе placeholder
+        const imgSrc = item.preview_url || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3E⏳%3C/text%3E%3C/svg%3E";
+        
         preview.innerHTML = `
-          <img src="${item.preview_url}" alt="${item.name}" class="attachDraftPreview__img">
+          <img src="${imgSrc}" alt="${item.name}" class="attachDraftPreview__img">
           <button type="button" class="attachDraftPreview__remove" title="Удалить">×</button>
         `;
         el.attachmentsBar.appendChild(preview);
-      } else if (isVideo && item.preview_url) {
+      } else if (isVideo) {
         // Показываем превью видео
         const preview = document.createElement("div");
         preview.className = "attachDraftPreview attachDraftPreview--video";
         preview.dataset.id = item.id;
-        preview.innerHTML = `
-          <video src="${item.preview_url}" class="attachDraftPreview__img" muted></video>
-          <div class="attachDraftPreview__icon">▶️</div>
-          <button type="button" class="attachDraftPreview__remove" title="Удалить">×</button>
-        `;
+        
+        if (item.preview_url) {
+          preview.innerHTML = `
+            <video src="${item.preview_url}" class="attachDraftPreview__img" muted></video>
+            <div class="attachDraftPreview__icon">▶️</div>
+            <button type="button" class="attachDraftPreview__remove" title="Удалить">×</button>
+          `;
+        } else {
+          preview.innerHTML = `
+            <div class="attachDraftPreview__img" style="background:#f0f0f0;display:flex;align-items:center;justify-content:center;">⏳</div>
+            <button type="button" class="attachDraftPreview__remove" title="Удалить">×</button>
+          `;
+        }
         el.attachmentsBar.appendChild(preview);
       } else {
         // Показываем название файла для аудио и других типов
@@ -1375,8 +1387,24 @@
       
       // Сервер возвращает token, type, max_api_type, message_id и опционально photo_id
       if (data.token) {
-        // Создаем локальное превью для немедленного отображения
-        const previewUrl = URL.createObjectURL(file);
+        // Загружаем превью через прокси сразу после загрузки
+        let previewUrl = null;
+        const identifier = data.message_id || data.photo_id || data.token;
+        
+        if (identifier) {
+          try {
+            const mediaResp = await fetch(`${state.apiBase}/api/media/${encodeURIComponent(identifier)}`);
+            if (mediaResp.ok) {
+              const mediaData = await mediaResp.json();
+              if (mediaData.ok && mediaData.data_url) {
+                previewUrl = mediaData.data_url;
+                console.log(`[DEBUG] Preview loaded for ${identifier.substring(0, 30)}..., size: ${mediaData.data_url.length} chars`);
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to load preview:", err);
+          }
+        }
         
         return {
           token: data.token,
@@ -1384,7 +1412,7 @@
           message_id: data.message_id, // ID сообщения в архивном канале MAX
           type: data.type || file.type,
           max_api_type: data.max_api_type, // image, video, audio
-          preview_url: previewUrl, // Локальное превью для немедленного отображения
+          preview_url: previewUrl, // Data URL превью для отображения
         };
       }
       return null;
