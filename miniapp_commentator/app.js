@@ -494,34 +494,9 @@
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     } else {
-      // Преобразуем attachments: создаем URL для отображения
-      const apiBase = state.apiBase || getApiBase();
-      
-      normalized.attachments = normalized.attachments.map(att => {
-        // Если есть preview_url (локальное превью), используем его
-        if (att.preview_url && att.preview_url.startsWith('blob:')) {
-          return {
-            ...att,
-            url: att.preview_url
-          };
-        }
-        
-        // Если есть token, создаем URL через прокси
-        if (att.token) {
-          const proxyUrl = `${apiBase}/api/media/${encodeURIComponent(att.token)}`;
-          return {
-            ...att,
-            url: proxyUrl
-          };
-        }
-        
-        // Если есть только URL, используем его
-        if (att.url) {
-          return att;
-        }
-        
-        return att;
-      }).filter(att => att.url || att.token); // Удаляем вложения без способа отображения
+      // Оставляем attachments как есть - URL будет загружаться динамически при рендеринге
+      // Сохраняем только те вложения, у которых есть token или photo_id
+      normalized.attachments = normalized.attachments.filter(att => att.token || att.photo_id || att.preview_url);
     }
     return normalized;
   }
@@ -1139,51 +1114,66 @@
           const isImage = file.type && file.type.startsWith('image/');
           const isVideo = file.type && file.type.startsWith('video/');
           
-          // Определяем URL для отображения
-          let displayUrl = file.url || file.preview_url;
-          
-          // Если есть token но нет URL, создаем URL через прокси
-          if (!displayUrl && file.token) {
-            const apiBase = state.apiBase || getApiBase();
-            displayUrl = `${apiBase}/api/media/${encodeURIComponent(file.token)}`;
-            console.log(`[DEBUG] Created proxy URL from token: ${displayUrl.substring(0, 80)}...`);
-          }
+          // Определяем идентификатор для загрузки (приоритет: photo_id > token)
+          const identifier = file.photo_id || file.token;
           
           // Показываем превью для изображений
-          if (isImage && displayUrl) {
+          if (isImage && identifier) {
             // Предпросмотр изображения
             const imgWrap = document.createElement("div");
             imgWrap.className = "attachImage";
             const img = document.createElement("img");
-            img.src = displayUrl;
             img.alt = file.name || "изображение";
             img.loading = "lazy";
             
-            console.log(`[DEBUG] Creating image element with src: ${displayUrl.substring(0, 80)}...`);
+            // Показываем placeholder пока загружается
+            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3E⏳%3C/text%3E%3C/svg%3E";
             
-            // Обработка ошибки загрузки изображения
-            img.addEventListener("error", (e) => {
-              console.warn("Image failed to load, showing as link:", displayUrl);
-              // Заменяем на ссылку при ошибке загрузки
-              const chip = document.createElement("div");
-              chip.className = "attachChip";
-              chip.style.cursor = "pointer";
-              chip.textContent = `🖼️ ${file.name || "изображение"}`;
-              chip.addEventListener("click", (e) => {
-                e.preventDefault();
-                window.open(displayUrl, "_blank", "noopener");
+            console.log(`[DEBUG] Loading image via proxy for identifier: ${identifier.substring(0, 50)}...`);
+            
+            // Загружаем data URL через прокси
+            const apiBase = state.apiBase || getApiBase();
+            fetch(`${apiBase}/api/media/${encodeURIComponent(identifier)}`)
+              .then(resp => {
+                if (!resp.ok) {
+                  throw new Error(`HTTP ${resp.status}`);
+                }
+                return resp.json();
+              })
+              .then(data => {
+                if (data.ok && data.data_url) {
+                  img.src = data.data_url;
+                  console.log(`[DEBUG] Image loaded successfully, data URL size: ${data.data_url.length} chars`);
+                } else {
+                  throw new Error(data.error || "No data URL in response");
+                }
+              })
+              .catch(err => {
+                console.warn("Image failed to load via proxy:", err);
+                // Заменяем на ссылку при ошибке загрузки
+                const chip = document.createElement("div");
+                chip.className = "attachChip";
+                chip.style.cursor = "pointer";
+                chip.textContent = `🖼️ ${file.name || "изображение"}`;
+                chip.addEventListener("click", (e) => {
+                  e.preventDefault();
+                  // Пробуем открыть через прокси
+                  window.open(`${apiBase}/api/media/${encodeURIComponent(identifier)}`, "_blank", "noopener");
+                });
+                imgWrap.replaceWith(chip);
               });
-              imgWrap.replaceWith(chip);
-            });
             
             img.addEventListener("click", (e) => {
               e.preventDefault();
-              // Открываем изображение в новой вкладке
-              window.open(displayUrl, "_blank", "noopener");
+              // Открываем изображение в новой вкладке (data URL)
+              if (img.src && img.src.startsWith('data:')) {
+                const w = window.open();
+                w.document.write(`<img src="${img.src}" style="max-width:100%;height:auto;">`);
+              }
             });
             imgWrap.appendChild(img);
             attachmentsWrap.appendChild(imgWrap);
-          } else if (displayUrl) {
+          } else if (identifier) {
             // Кликабельная ссылка на файл
             const chip = document.createElement("div");
             chip.className = "attachChip";
@@ -1192,7 +1182,8 @@
             chip.textContent = `${icon} ${file.name || "файл"}`;
             chip.addEventListener("click", (e) => {
               e.preventDefault();
-              window.open(displayUrl, "_blank", "noopener");
+              const apiBase = state.apiBase || getApiBase();
+              window.open(`${apiBase}/api/media/${encodeURIComponent(identifier)}`, "_blank", "noopener");
             });
             attachmentsWrap.appendChild(chip);
           }
