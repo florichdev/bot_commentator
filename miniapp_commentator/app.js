@@ -1152,31 +1152,30 @@
 
   function formatTime(iso) {
     try {
-      // Парсим дату и конвертируем в МСК (UTC+3)
+      // Парсим дату (сервер отправляет UTC с 'Z')
       const d = new Date(iso);
       
-      // Получаем время в UTC и добавляем 3 часа для МСК
-      const utcTime = d.getTime() + (d.getTimezoneOffset() * 60000);
-      const mskTime = new Date(utcTime + (3 * 3600000)); // UTC+3
+      // Конвертируем в МСК (UTC+3)
+      const mskTime = new Date(d.getTime() + (3 * 3600000));
       
+      // Текущее время в МСК
       const now = new Date();
-      const nowUtc = now.getTime() + (now.getTimezoneOffset() * 60000);
-      const nowMsk = new Date(nowUtc + (3 * 3600000));
+      const nowMsk = new Date(now.getTime() + (3 * 3600000));
       
       const sameDay =
-        mskTime.getFullYear() === nowMsk.getFullYear() &&
-        mskTime.getMonth() === nowMsk.getMonth() &&
-        mskTime.getDate() === nowMsk.getDate();
+        mskTime.getUTCFullYear() === nowMsk.getUTCFullYear() &&
+        mskTime.getUTCMonth() === nowMsk.getUTCMonth() &&
+        mskTime.getUTCDate() === nowMsk.getUTCDate();
       
-      const hours = String(mskTime.getHours()).padStart(2, '0');
-      const minutes = String(mskTime.getMinutes()).padStart(2, '0');
+      const hours = String(mskTime.getUTCHours()).padStart(2, '0');
+      const minutes = String(mskTime.getUTCMinutes()).padStart(2, '0');
       
       if (sameDay) {
         return `${hours}:${minutes}`;
       }
       
-      const day = String(mskTime.getDate()).padStart(2, '0');
-      const month = String(mskTime.getMonth() + 1).padStart(2, '0');
+      const day = String(mskTime.getUTCDate()).padStart(2, '0');
+      const month = String(mskTime.getUTCMonth() + 1).padStart(2, '0');
       return `${day}.${month} ${hours}:${minutes}`;
     } catch {
       return iso;
