@@ -1233,9 +1233,6 @@
       if (!isMine) {
         avatarEl.style.cursor = "pointer";
         authorEl.style.cursor = "pointer";
-        // iOS: разрешаем обработку событий для аватара и автора
-        avatarEl.style.pointerEvents = "auto";
-        authorEl.style.pointerEvents = "auto";
         
         const handleUserClick = (e) => {
           e.preventDefault();
@@ -1267,8 +1264,6 @@
             // Предпросмотр изображения
             const imgWrap = document.createElement("div");
             imgWrap.className = "attachImage";
-            // iOS: разрешаем обработку событий для вложений
-            imgWrap.style.pointerEvents = "auto";
             const img = document.createElement("img");
             img.alt = file.name || "изображение";
             img.loading = "lazy";
@@ -1307,8 +1302,6 @@
                   // Заменяем на ссылку при ошибке загрузки
                   const chip = document.createElement("div");
                   chip.className = "attachChip";
-                  // iOS: разрешаем обработку событий для вложений
-                  chip.style.pointerEvents = "auto";
                   chip.style.cursor = "pointer";
                   chip.textContent = `🖼️ ${file.name || "изображение"}`;
                   chip.addEventListener("click", (e) => {
@@ -1331,9 +1324,7 @@
             // Превью для видео
             const videoWrap = document.createElement("div");
             videoWrap.className = "attachImage attachImage--video";
-            // iOS: разрешаем обработку событий для вложений
-            videoWrap.style.pointerEvents = "auto";
-            videoWrap.style.cssText = "position: relative; background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 150px; overflow: hidden; pointer-events: auto;";
+            videoWrap.style.cssText = "position: relative; background: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 150px; overflow: hidden;";
             
             // Создаем video элемент для получения первого кадра
             const video = document.createElement("video");
@@ -1381,8 +1372,6 @@
             // Кликабельная ссылка на файл (аудио и другие типы)
             const chip = document.createElement("div");
             chip.className = "attachChip";
-            // iOS: разрешаем обработку событий для вложений
-            chip.style.pointerEvents = "auto";
             chip.style.cursor = "pointer";
             const icon = file.type && file.type.startsWith('audio/') ? "🎵" : "📎";
             chip.textContent = `${icon} ${file.name || "файл"}`;
@@ -1416,8 +1405,6 @@
         pill.textContent = `${key} ${formatReactionCount(count)}`;
         pill.dataset.reaction = key;
         pill.style.cursor = "pointer";
-        // iOS: разрешаем обработку событий для реакций
-        pill.style.pointerEvents = "auto";
         
         // Добавляем обработчик клика для переключения реакции
         pill.addEventListener("click", async (e) => {
@@ -1454,23 +1441,42 @@
         openContextMenu(item.id, e.clientX, e.clientY);
       });
       
-      // iOS: добавляем обработчики touch событий
+      // iOS: добавляем обработчики touch событий ТОЛЬКО для долгого нажатия
       let touchStartTime = 0;
       let touchStartX = 0;
       let touchStartY = 0;
       let longPressTimer = null;
+      let longPressTriggered = false;
       
       node.addEventListener("touchstart", (e) => {
+        // Проверяем, что тап не по интерактивному элементу
+        const target = e.target;
+        const isInteractive = target.closest('.reactionPill') || 
+                             target.closest('.attachImage') || 
+                             target.closest('.attachChip') || 
+                             target.closest('.msg__avatar') || 
+                             target.closest('.bubble__author');
+        
+        // Если тап по интерактивному элементу - не обрабатываем
+        if (isInteractive) {
+          return;
+        }
+        
         touchStartTime = Date.now();
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
+        longPressTriggered = false;
         
         // Долгое нажатие для контекстного меню (500ms)
         longPressTimer = setTimeout(() => {
-          e.preventDefault();
+          longPressTriggered = true;
+          // Вибрация при долгом нажатии (если поддерживается)
+          if (navigator.vibrate) {
+            navigator.vibrate(50);
+          }
           openContextMenu(item.id, touchStartX, touchStartY);
         }, 500);
-      }, { passive: false });
+      }, { passive: true });
       
       node.addEventListener("touchmove", (e) => {
         // Отменяем долгое нажатие если палец двигается
@@ -1482,7 +1488,7 @@
             longPressTimer = null;
           }
         }
-      });
+      }, { passive: true });
       
       node.addEventListener("touchend", (e) => {
         if (longPressTimer) {
@@ -1490,20 +1496,16 @@
           longPressTimer = null;
         }
         
-        // Короткий тап - открываем контекстное меню
-        const touchDuration = Date.now() - touchStartTime;
-        if (touchDuration < 500) {
-          e.preventDefault();
-          openContextMenu(item.id, touchStartX, touchStartY);
-        }
-      });
+        // НЕ открываем контекстное меню при коротком тапе
+        // Короткий тап должен работать только для интерактивных элементов
+      }, { passive: true });
       
       node.addEventListener("touchcancel", () => {
         if (longPressTimer) {
           clearTimeout(longPressTimer);
           longPressTimer = null;
         }
-      });
+      }, { passive: true });
       
       node.addEventListener("click", (e) => {
         const action = e.target?.dataset?.action;
