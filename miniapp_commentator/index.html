@@ -95,6 +95,7 @@
       <div class="comment-context-menu" role="menu">
         <div id="contextReactions" class="comment-context-menu__reactions"></div>
         <button type="button" class="comment-context-menu__item" data-menu-action="reply" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_reply_20"></use></svg><span class="comment-context-menu__item-label">Ответить</span></button>
+        <button type="button" class="comment-context-menu__item" data-menu-action="edit" role="menuitem" id="contextEditBtn" hidden><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_edit_20"></use></svg><span class="comment-context-menu__item-label">Редактировать</span></button>
         <button type="button" class="comment-context-menu__item" data-menu-action="copy" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_copy_20"></use></svg><span class="comment-context-menu__item-label">Скопировать</span></button>
         <button type="button" class="comment-context-menu__item" data-menu-action="report" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_report_20"></use></svg><span class="comment-context-menu__item-label">Пожаловаться</span></button>
         <button type="button" class="comment-context-menu__item comment-context-menu__item--danger" data-menu-action="delete" role="menuitem"><svg class="comment-context-menu__item-icon" width="20" height="20" aria-hidden="true"><use href="#icon_delete_20"></use></svg><span class="comment-context-menu__item-label">Удалить</span></button>
@@ -148,6 +149,117 @@
       <div class="settingsModal__section">
         <button id="openBotBtn" class="settingsConnectBtn" type="button">Подключить комментарии</button>
       </div>
+      <div class="settingsModal__section premium-settings-section">
+        <div class="settingsModal__label">Цвет премиум-комментариев</div>
+        <div class="premium-mode-toggle">
+          <button class="premium-mode-btn active" data-mode="presets" type="button">Готовые</button>
+          <button class="premium-mode-btn" data-mode="custom" type="button">Кастом</button>
+        </div>
+        <div class="premium-color-palette" id="premiumColorPalette"></div>
+        <div class="premium-color-picker" id="premiumColorPicker" hidden>
+          <div class="mobile-color-picker" id="mobileColorPicker1">
+            <div style="font-size: 13px; font-weight: 500; opacity: 0.9; margin-bottom: -8px;">Фон (светлый):</div>
+            <div class="mobile-color-picker__preview" id="previewColor1" style="background: rgba(255, 215, 0, 0.21);"></div>
+            <div class="mobile-color-picker__slider-group">
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">H</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="h" data-target="1" min="0" max="360" value="51">
+                <span class="mobile-color-picker__value" id="valueH1">51°</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">S</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="s" data-target="1" min="0" max="100" value="100">
+                <span class="mobile-color-picker__value" id="valueS1">100%</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">L</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="l" data-target="1" min="0" max="100" value="50">
+                <span class="mobile-color-picker__value" id="valueL1">50%</span>
+              </div>
+            </div>
+            <div class="mobile-color-picker__hex">
+              <span class="mobile-color-picker__hex-label">HEX:</span>
+              <span class="mobile-color-picker__hex-value" id="hexValue1">#FFD700</span>
+            </div>
+          </div>
+          
+          <div class="mobile-color-picker" id="mobileColorPicker2" style="margin-top: 20px;">
+            <div style="font-size: 13px; font-weight: 500; opacity: 0.9; margin-bottom: -8px;">Фон (средний):</div>
+            <div class="mobile-color-picker__preview" id="previewColor2" style="background: rgba(255, 193, 7, 0.12);"></div>
+            <div class="mobile-color-picker__slider-group">
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">H</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="h" data-target="2" min="0" max="360" value="45">
+                <span class="mobile-color-picker__value" id="valueH2">45°</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">S</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="s" data-target="2" min="0" max="100" value="100">
+                <span class="mobile-color-picker__value" id="valueS2">100%</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">L</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="l" data-target="2" min="0" max="100" value="51">
+                <span class="mobile-color-picker__value" id="valueL2">51%</span>
+              </div>
+            </div>
+            <div class="mobile-color-picker__hex">
+              <span class="mobile-color-picker__hex-label">HEX:</span>
+              <span class="mobile-color-picker__hex-value" id="hexValue2">#FFC107</span>
+            </div>
+          </div>
+          
+          <div style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: center;">
+            <div style="font-size: 11px; opacity: 0.7; margin-bottom: 8px;">Остальные параметры (обводка, свечение, цвет имени) настраиваются автоматически на основе выбранного цвета</div>
+          </div>
+        </div>
+      </div>
+      <div class="settingsModal__section premium-settings-section">
+        <div class="settingsModal__label">Эмодзи премиум-бейджа</div>
+        <div class="premium-mode-toggle">
+          <button class="premium-mode-btn active" data-emoji-mode="emoji" type="button">Эмодзи</button>
+          <button class="premium-mode-btn" data-emoji-mode="color" type="button">Заливка</button>
+        </div>
+        <div class="premium-emoji-palette" id="premiumEmojiPalette"></div>
+        <div class="premium-emoji-color-picker" id="premiumEmojiColorPicker" hidden>
+          <div class="mobile-color-picker">
+            <div class="mobile-color-picker__preview" id="previewEmojiColor" style="background: #ffd700;"></div>
+            <div class="mobile-color-picker__slider-group">
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">H</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="h" data-target="emoji" min="0" max="360" value="51">
+                <span class="mobile-color-picker__value" id="valueHEmoji">51°</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">S</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="s" data-target="emoji" min="0" max="100" value="100">
+                <span class="mobile-color-picker__value" id="valueSEmoji">100%</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">L</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="l" data-target="emoji" min="0" max="100" value="50">
+                <span class="mobile-color-picker__value" id="valueLEmoji">50%</span>
+              </div>
+            </div>
+            <div class="mobile-color-picker__hex">
+              <span class="mobile-color-picker__hex-label">HEX:</span>
+              <span class="mobile-color-picker__hex-value" id="hexValueEmoji">#FFD700</span>
+            </div>
+            <div class="mobile-color-picker__presets">
+              <div class="mobile-color-picker__preset" style="background: #FFD700;" data-color="#FFD700"></div>
+              <div class="mobile-color-picker__preset" style="background: #C0C0C0;" data-color="#C0C0C0"></div>
+              <div class="mobile-color-picker__preset" style="background: #0096FF;" data-color="#0096FF"></div>
+              <div class="mobile-color-picker__preset" style="background: #8A2BE2;" data-color="#8A2BE2"></div>
+              <div class="mobile-color-picker__preset" style="background: #22C55E;" data-color="#22C55E"></div>
+              <div class="mobile-color-picker__preset" style="background: #EF4444;" data-color="#EF4444"></div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">Предпросмотр эмодзи с заливкой:</div>
+            <div id="emojiColorPreview" style="font-size: 32px; background: #ffd700; background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: brightness(1.2) saturate(1.3);">👑</div>
+          </div>
+        </div>
+      </div>
       <div class="settingsModal__section">
         <div class="settingsModal__label">Тема</div>
         <div class="settingsModal__row">
@@ -158,7 +270,69 @@
       </div>
       <div class="settingsModal__section">
         <div class="settingsModal__label">Градиент фона</div>
+        <div class="premium-mode-toggle">
+          <button class="premium-mode-btn active" data-bg-mode="presets" type="button">Готовые</button>
+          <button class="premium-mode-btn" data-bg-mode="custom" type="button">Кастом</button>
+        </div>
         <div class="settingsModal__palette" id="paletteGrid"></div>
+        <div class="custom-gradient-picker" id="customGradientPicker" hidden>
+          <div class="mobile-color-picker">
+            <div style="font-size: 13px; font-weight: 500; opacity: 0.9; margin-bottom: -8px;">Цвет 1 (начало):</div>
+            <div class="mobile-color-picker__preview" id="previewGradient1" style="background: #0f5739;"></div>
+            <div class="mobile-color-picker__slider-group">
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">H</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="h" data-target="gradient1" min="0" max="360" value="160">
+                <span class="mobile-color-picker__value" id="valueHGradient1">160°</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">S</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="s" data-target="gradient1" min="0" max="100" value="72">
+                <span class="mobile-color-picker__value" id="valueSGradient1">72%</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">L</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="l" data-target="gradient1" min="0" max="100" value="20">
+                <span class="mobile-color-picker__value" id="valueLGradient1">20%</span>
+              </div>
+            </div>
+            <div class="mobile-color-picker__hex">
+              <span class="mobile-color-picker__hex-label">HEX:</span>
+              <span class="mobile-color-picker__hex-value" id="hexValueGradient1">#0F5739</span>
+            </div>
+          </div>
+          
+          <div class="mobile-color-picker" style="margin-top: 16px;">
+            <div style="font-size: 13px; font-weight: 500; opacity: 0.9; margin-bottom: -8px;">Цвет 2 (конец):</div>
+            <div class="mobile-color-picker__preview" id="previewGradient2" style="background: #52c9eb;"></div>
+            <div class="mobile-color-picker__slider-group">
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">H</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="h" data-target="gradient2" min="0" max="360" value="190">
+                <span class="mobile-color-picker__value" id="valueHGradient2">190°</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">S</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="s" data-target="gradient2" min="0" max="100" value="80">
+                <span class="mobile-color-picker__value" id="valueSGradient2">80%</span>
+              </div>
+              <div class="mobile-color-picker__slider-row">
+                <span class="mobile-color-picker__label">L</span>
+                <input type="range" class="mobile-color-picker__slider" data-channel="l" data-target="gradient2" min="0" max="100" value="63">
+                <span class="mobile-color-picker__value" id="valueLGradient2">63%</span>
+              </div>
+            </div>
+            <div class="mobile-color-picker__hex">
+              <span class="mobile-color-picker__hex-label">HEX:</span>
+              <span class="mobile-color-picker__hex-value" id="hexValueGradient2">#52C9EB</span>
+            </div>
+          </div>
+          
+          <div style="margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 12px;">
+            <div style="font-size: 13px; font-weight: 500; opacity: 0.9; margin-bottom: 12px;">Предпросмотр градиента:</div>
+            <div id="gradientPreview" style="width: 100%; height: 80px; border-radius: 12px; background: linear-gradient(90deg, #0f5739, #52c9eb); box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -204,6 +378,30 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования комментария -->
+  <div id="editModal" class="deleteModal" hidden>
+    <div class="deleteModal__overlay"></div>
+    <div class="deleteModal__content" style="max-width: 480px;">
+      <div class="deleteModal__header">
+        <div class="deleteModal__title">Редактировать комментарий</div>
+      </div>
+      <div class="deleteModal__body" style="padding: 20px;">
+        <textarea id="editTextarea" class="editModal__textarea" placeholder="Введите текст комментария..." maxlength="4000"></textarea>
+        <div class="editModal__hint">Поддерживается Markdown: **жирный**, *курсив*, [ссылка](url), `код`</div>
+        <div class="editModal__counter"><span id="editCharCounter">0</span> / 4000</div>
+      </div>
+      <div class="deleteModal__actions">
+        <button id="editCancelBtn" class="deleteModal__btn deleteModal__btn--secondary" type="button">
+          Отмена
+        </button>
+        <button id="editSaveBtn" class="deleteModal__btn deleteModal__btn--primary" type="button">
+          Сохранить
+        </button>
+      </div>
+      <button id="editCloseBtn" class="deleteModal__cancel" type="button" aria-label="Закрыть">✕</button>
     </div>
   </div>
 

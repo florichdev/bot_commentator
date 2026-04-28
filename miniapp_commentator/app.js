@@ -11,18 +11,29 @@
       id: "",
       name: "",
       photo_url: null,
+      isPremium: false, // Премиум-статус пользователя
     },
     apiBase: "",
     replyTo: null,
     contextCommentId: null,
     deleteCommentId: null,
+    editCommentId: null,
     searchQuery: "",
     searchOpen: false,
     themeMode: "system",
     bgScheme: "pattern-only",
+    bgMode: "presets", // "presets" или "custom" для градиента
+    customGradient: null, // Кастомный градиент {gradient1: {h, s, l, hex}, gradient2: {h, s, l, hex}}
+    premiumColorScheme: "gold", // Цветовая схема премиум-комментариев
+    premiumColorMode: "presets", // "presets" или "custom"
+    premiumCustomColors: null, // Кастомные цвета пользователя
+    premiumEmoji: "👑", // Эмодзи для премиум-бейджа
+    premiumEmojiMode: "emoji", // "emoji" или "color" для заливки
+    premiumEmojiColor: "#ffd700", // Цвет заливки эмодзи
     attachments: [],
     postLink: "",
     mediaCache: {}, // Кеш для data URLs изображений по message_id
+    premiumUsers: {}, // Кеш премиум-статусов других пользователей {user_id: boolean}
   };
 
   const el = {
@@ -39,6 +50,8 @@
     settingsModal: document.getElementById("settingsModal"),
     settingsCloseBtn: document.getElementById("settingsCloseBtn"),
     paletteGrid: document.getElementById("paletteGrid"),
+    premiumColorPalette: document.getElementById("premiumColorPalette"),
+    premiumEmojiPalette: document.getElementById("premiumEmojiPalette"),
     openBotBtn: document.getElementById("openBotBtn"),
     commentsCount: document.getElementById("commentsCount"),
     commentsList: document.getElementById("commentsList"),
@@ -64,6 +77,13 @@
     clearModal: document.getElementById("clearModal"),
     clearConfirmBtn: document.getElementById("clearConfirmBtn"),
     clearCancelBtn: document.getElementById("clearCancelBtn"),
+    editModal: document.getElementById("editModal"),
+    editTextarea: document.getElementById("editTextarea"),
+    editCharCounter: document.getElementById("editCharCounter"),
+    editSaveBtn: document.getElementById("editSaveBtn"),
+    editCancelBtn: document.getElementById("editCancelBtn"),
+    editCloseBtn: document.getElementById("editCloseBtn"),
+    contextEditBtn: document.getElementById("contextEditBtn"),
   };
   const THEME_KEY = "max-commentator:theme";
   const BG_KEY = "max-commentator:bg";
@@ -82,6 +102,88 @@
     { id: "gradient10", label: "Огненный", gradient: "linear-gradient(90deg, #c0392b,#e74c3c,#f39c12,#f1c40f)" },
   ];
   const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+  
+  // Базовые реакции (доступны всем)
+  const BASIC_REACTIONS = ["❤️", "👍", "👎", "😂", "😮", "😢"];
+  
+  // Премиум реакции (только для премиум-пользователей)
+  const PREMIUM_REACTIONS = ["🔥", "💯", "🎉", "⚡", "💎", "🚀", "🏆", "✨"];
+  
+  // Цветовые схемы для премиум-комментариев
+  const PREMIUM_COLOR_SCHEMES = [
+    { 
+      id: "gold", 
+      label: "Золотой", 
+      color1: "rgba(255, 215, 0, 0.21)", 
+      color2: "rgba(255, 193, 7, 0.12)", 
+      color3: "rgba(255, 215, 0, 0.08)",
+      border: "rgba(255, 215, 0, 0.45)",
+      glow: "rgba(255, 215, 0, 0.2)",
+      nameColor: "rgba(255, 215, 0, 0.95)"
+    },
+    { 
+      id: "silver", 
+      label: "Серебряный", 
+      color1: "rgba(192, 192, 192, 0.21)", 
+      color2: "rgba(169, 169, 169, 0.12)", 
+      color3: "rgba(192, 192, 192, 0.08)",
+      border: "rgba(192, 192, 192, 0.45)",
+      glow: "rgba(192, 192, 192, 0.2)",
+      nameColor: "rgba(192, 192, 192, 0.95)"
+    },
+    { 
+      id: "blue", 
+      label: "Синий", 
+      color1: "rgba(0, 150, 255, 0.21)", 
+      color2: "rgba(0, 120, 255, 0.12)", 
+      color3: "rgba(0, 150, 255, 0.08)",
+      border: "rgba(0, 150, 255, 0.45)",
+      glow: "rgba(0, 150, 255, 0.2)",
+      nameColor: "rgba(0, 150, 255, 0.95)"
+    },
+    { 
+      id: "purple", 
+      label: "Фиолетовый", 
+      color1: "rgba(138, 43, 226, 0.21)", 
+      color2: "rgba(147, 51, 234, 0.12)", 
+      color3: "rgba(138, 43, 226, 0.08)",
+      border: "rgba(138, 43, 226, 0.45)",
+      glow: "rgba(138, 43, 226, 0.2)",
+      nameColor: "rgba(138, 43, 226, 0.95)"
+    },
+    { 
+      id: "green", 
+      label: "Зеленый", 
+      color1: "rgba(34, 197, 94, 0.21)", 
+      color2: "rgba(22, 163, 74, 0.12)", 
+      color3: "rgba(34, 197, 94, 0.08)",
+      border: "rgba(34, 197, 94, 0.45)",
+      glow: "rgba(34, 197, 94, 0.2)",
+      nameColor: "rgba(34, 197, 94, 0.95)"
+    },
+    { 
+      id: "red", 
+      label: "Красный", 
+      color1: "rgba(239, 68, 68, 0.21)", 
+      color2: "rgba(220, 38, 38, 0.12)", 
+      color3: "rgba(239, 68, 68, 0.08)",
+      border: "rgba(239, 68, 68, 0.45)",
+      glow: "rgba(239, 68, 68, 0.2)",
+      nameColor: "rgba(239, 68, 68, 0.95)"
+    }
+  ];
+  
+  // Эмодзи для премиум-бейджа
+  const PREMIUM_EMOJIS = ["👑", "⭐", "💎", "🔥", "✨", "🏆", "💫", "🌟", "⚡", "🎖️"];
+  
+  const PREMIUM_COLOR_KEY = "max-commentator:premium-color";
+  const PREMIUM_EMOJI_KEY = "max-commentator:premium-emoji";
+  const PREMIUM_EMOJI_MODE_KEY = "max-commentator:premium-emoji-mode";
+  const PREMIUM_EMOJI_COLOR_KEY = "max-commentator:premium-emoji-color";
+  const PREMIUM_COLOR_MODE_KEY = "max-commentator:premium-color-mode";
+  const PREMIUM_CUSTOM_COLORS_KEY = "max-commentator:premium-custom-colors";
+  const BG_MODE_KEY = "max-commentator:bg-mode";
+  const CUSTOM_GRADIENT_KEY = "max-commentator:custom-gradient";
 
   function safeParse(json, fallback) {
     try {
@@ -89,6 +191,100 @@
     } catch {
       return fallback;
     }
+  }
+
+  // Функции конвертации цветов для мобильного color picker
+  function hslToHex(h, s, l) {
+    l /= 100;
+    const a = s * Math.min(l, 1 - l) / 100;
+    const f = n => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+  }
+
+  function hexToHsl(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    
+    if (max === min) {
+      h = s = 0;
+    } else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    
+    return {
+      h: Math.round(h * 360),
+      s: Math.round(s * 100),
+      l: Math.round(l * 100)
+    };
+  }
+
+  function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  // Debounce функция для оптимизации API вызовов
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Функция для парсинга Markdown (только для премиум-пользователей)
+  function parseMarkdown(text) {
+    if (!text) return '';
+    
+    // Экранируем HTML теги для безопасности
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    // Парсим Markdown
+    // **жирный** или __жирный__
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    
+    // *курсив* или _курсив_
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    
+    // [текст](ссылка)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    // `код`
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // ~~зачеркнутый~~
+    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    
+    // Переносы строк
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
   }
 
   function getWebApp() {
@@ -419,6 +615,20 @@
   }
 
   function applyBackgroundScheme() {
+    // Если выбран кастомный режим и есть кастомный градиент
+    if (state.bgMode === 'custom' && state.customGradient) {
+      const color1 = state.customGradient.gradient1?.hex || '#0f5739';
+      const color2 = state.customGradient.gradient2?.hex || '#52c9eb';
+      const gradient = `linear-gradient(90deg, ${color1}, ${color2})`;
+      document.documentElement.style.setProperty("--chat-bg-base", gradient);
+      document.documentElement.style.setProperty("--overlay-gradients", 
+        `radial-gradient(45% 35% at 50% 35%, rgba(128, 210, 255, 0.08) 0%, rgba(0,0,0,0) 68%),
+         radial-gradient(57.57% 53.61% at 94.4% 14.38%, var(--chat-additional-1) 0%, var(--chat-additional-2) 48%, var(--chat-additional-3) 100%),
+         radial-gradient(140.37% 51.38% at 0% 80.05%, var(--chat-additional-4) 0%, var(--chat-additional-5) 52%, var(--chat-additional-6) 100%)`
+      );
+      return;
+    }
+    
     const scheme = BG_SCHEMES.find((item) => item.id === state.bgScheme) || BG_SCHEMES[0];
     
     if (scheme.gradient) {
@@ -452,8 +662,79 @@
       document.documentElement.style.setProperty("--overlay-gradients", "none");
     }
   }
+  
+  function applyPremiumColors() {
+    let colors;
+    
+    if (state.premiumColorMode === "custom" && state.premiumCustomColors) {
+      colors = state.premiumCustomColors;
+    } else {
+      const colorScheme = PREMIUM_COLOR_SCHEMES.find((item) => item.id === state.premiumColorScheme) || PREMIUM_COLOR_SCHEMES[0];
+      colors = colorScheme;
+    }
+    
+    document.documentElement.style.setProperty("--premium-color-1", colors.color1);
+    document.documentElement.style.setProperty("--premium-color-2", colors.color2);
+    document.documentElement.style.setProperty("--premium-color-3", colors.color3);
+    document.documentElement.style.setProperty("--premium-border", colors.border);
+    document.documentElement.style.setProperty("--premium-glow", colors.glow);
+    document.documentElement.style.setProperty("--premium-name-color", colors.nameColor);
+    
+    // Применяем эмодзи или цветную заливку
+    if (state.premiumEmojiMode === 'color') {
+      document.documentElement.style.setProperty("--premium-emoji", `""`);
+      document.documentElement.style.setProperty("--premium-emoji-color", state.premiumEmojiColor);
+    } else {
+      document.documentElement.style.setProperty("--premium-emoji", `"${state.premiumEmoji}"`);
+      document.documentElement.style.setProperty("--premium-emoji-color", "transparent");
+    }
+  }
 
-  function loadVisualSettings() {
+  async function loadVisualSettings() {
+    // Сначала пробуем загрузить с сервера
+    if (state.apiBase && isAuthorizedUser()) {
+      const serverSettings = await apiLoadUserSettings();
+      if (serverSettings) {
+        console.log("[DEBUG] Loaded settings from server:", serverSettings);
+        
+        // Применяем настройки с сервера
+        if (serverSettings.themeMode && ["light", "dark", "system"].includes(serverSettings.themeMode)) {
+          state.themeMode = serverSettings.themeMode;
+        }
+        if (serverSettings.bgScheme && BG_SCHEMES.some((item) => item.id === serverSettings.bgScheme)) {
+          state.bgScheme = serverSettings.bgScheme;
+        }
+        if (serverSettings.bgMode && ["presets", "custom"].includes(serverSettings.bgMode)) {
+          state.bgMode = serverSettings.bgMode;
+        }
+        if (serverSettings.customGradient) {
+          state.customGradient = serverSettings.customGradient;
+        }
+        if (serverSettings.premiumColorScheme && PREMIUM_COLOR_SCHEMES.some((item) => item.id === serverSettings.premiumColorScheme)) {
+          state.premiumColorScheme = serverSettings.premiumColorScheme;
+        }
+        if (serverSettings.premiumEmoji && PREMIUM_EMOJIS.includes(serverSettings.premiumEmoji)) {
+          state.premiumEmoji = serverSettings.premiumEmoji;
+        }
+        if (serverSettings.premiumEmojiMode && ["emoji", "color"].includes(serverSettings.premiumEmojiMode)) {
+          state.premiumEmojiMode = serverSettings.premiumEmojiMode;
+        }
+        if (serverSettings.premiumEmojiColor) {
+          state.premiumEmojiColor = serverSettings.premiumEmojiColor;
+        }
+        if (serverSettings.premiumColorMode && ["presets", "custom"].includes(serverSettings.premiumColorMode)) {
+          state.premiumColorMode = serverSettings.premiumColorMode;
+        }
+        if (serverSettings.premiumCustomColors) {
+          state.premiumCustomColors = serverSettings.premiumCustomColors;
+        }
+        
+        return; // Успешно загрузили с сервера
+      }
+    }
+    
+    // Fallback на localStorage если сервер недоступен
+    console.log("[DEBUG] Loading settings from localStorage (fallback)");
     const storedTheme = localStorage.getItem(THEME_KEY);
     if (storedTheme && ["light", "dark", "system"].includes(storedTheme)) {
       state.themeMode = storedTheme;
@@ -462,11 +743,92 @@
     if (storedBg && BG_SCHEMES.some((item) => item.id === storedBg)) {
       state.bgScheme = storedBg;
     }
+    const storedBgMode = localStorage.getItem(BG_MODE_KEY);
+    if (storedBgMode && ["presets", "custom"].includes(storedBgMode)) {
+      state.bgMode = storedBgMode;
+    }
+    const storedCustomGradient = localStorage.getItem(CUSTOM_GRADIENT_KEY);
+    if (storedCustomGradient) {
+      try {
+        state.customGradient = JSON.parse(storedCustomGradient);
+      } catch (e) {
+        console.error("Failed to parse custom gradient:", e);
+      }
+    }
+    const storedPremiumColor = localStorage.getItem(PREMIUM_COLOR_KEY);
+    if (storedPremiumColor && PREMIUM_COLOR_SCHEMES.some((item) => item.id === storedPremiumColor)) {
+      state.premiumColorScheme = storedPremiumColor;
+    }
+    const storedPremiumEmoji = localStorage.getItem(PREMIUM_EMOJI_KEY);
+    if (storedPremiumEmoji && PREMIUM_EMOJIS.includes(storedPremiumEmoji)) {
+      state.premiumEmoji = storedPremiumEmoji;
+    }
+    const storedPremiumEmojiMode = localStorage.getItem(PREMIUM_EMOJI_MODE_KEY);
+    if (storedPremiumEmojiMode && ["emoji", "color"].includes(storedPremiumEmojiMode)) {
+      state.premiumEmojiMode = storedPremiumEmojiMode;
+    }
+    const storedPremiumEmojiColor = localStorage.getItem(PREMIUM_EMOJI_COLOR_KEY);
+    if (storedPremiumEmojiColor) {
+      state.premiumEmojiColor = storedPremiumEmojiColor;
+    }
+    const storedPremiumColorMode = localStorage.getItem(PREMIUM_COLOR_MODE_KEY);
+    if (storedPremiumColorMode && ["presets", "custom"].includes(storedPremiumColorMode)) {
+      state.premiumColorMode = storedPremiumColorMode;
+    }
+    const storedCustomColors = localStorage.getItem(PREMIUM_CUSTOM_COLORS_KEY);
+    if (storedCustomColors) {
+      try {
+        state.premiumCustomColors = JSON.parse(storedCustomColors);
+      } catch (e) {
+        console.error("Failed to parse custom colors:", e);
+      }
+    }
   }
 
-  function saveVisualSettings() {
+  // Debounced версия saveVisualSettings для оптимизации
+  const debouncedSaveVisualSettings = debounce(async function() {
+    // Сохраняем в localStorage (для быстрого доступа и fallback)
     localStorage.setItem(THEME_KEY, state.themeMode);
     localStorage.setItem(BG_KEY, state.bgScheme);
+    localStorage.setItem(BG_MODE_KEY, state.bgMode);
+    if (state.customGradient) {
+      localStorage.setItem(CUSTOM_GRADIENT_KEY, JSON.stringify(state.customGradient));
+    }
+    localStorage.setItem(PREMIUM_COLOR_KEY, state.premiumColorScheme);
+    localStorage.setItem(PREMIUM_EMOJI_KEY, state.premiumEmoji);
+    localStorage.setItem(PREMIUM_EMOJI_MODE_KEY, state.premiumEmojiMode);
+    localStorage.setItem(PREMIUM_EMOJI_COLOR_KEY, state.premiumEmojiColor);
+    localStorage.setItem(PREMIUM_COLOR_MODE_KEY, state.premiumColorMode);
+    if (state.premiumCustomColors) {
+      localStorage.setItem(PREMIUM_CUSTOM_COLORS_KEY, JSON.stringify(state.premiumCustomColors));
+    }
+    
+    // Сохраняем на сервер (если доступен)
+    if (state.apiBase && isAuthorizedUser()) {
+      const settings = {
+        themeMode: state.themeMode,
+        bgScheme: state.bgScheme,
+        bgMode: state.bgMode,
+        customGradient: state.customGradient,
+        premiumColorScheme: state.premiumColorScheme,
+        premiumColorMode: state.premiumColorMode,
+        premiumCustomColors: state.premiumCustomColors,
+        premiumEmoji: state.premiumEmoji,
+        premiumEmojiMode: state.premiumEmojiMode,
+        premiumEmojiColor: state.premiumEmojiColor
+      };
+      
+      const success = await apiSaveUserSettings(settings);
+      if (success) {
+        console.log("[DEBUG] Settings saved to server");
+      } else {
+        console.warn("[DEBUG] Failed to save settings to server, using localStorage only");
+      }
+    }
+  }, 500); // Debounce 500ms
+
+  function saveVisualSettings() {
+    debouncedSaveVisualSettings();
   }
 
   function isAuthorizedUser() {
@@ -571,6 +933,17 @@
 
   function openContextMenu(commentId, x, y) {
     state.contextCommentId = commentId;
+    
+    // Показываем/скрываем кнопку редактирования
+    const comment = findCommentById(commentId);
+    if (comment && el.contextEditBtn) {
+      const isMine = comment.authorId === state.user.id;
+      const commentAge = Date.now() - new Date(comment.createdAt).getTime();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 часа
+      const canEdit = isMine && commentAge <= maxAge && state.user.isPremium;
+      el.contextEditBtn.hidden = !canEdit;
+    }
+    
     el.contextMenu.hidden = false;
     el.contextMenuOverlay.hidden = false;
 
@@ -592,6 +965,69 @@
   function closeDeleteModal() {
     state.deleteCommentId = null;
     el.deleteModal.hidden = true;
+  }
+
+  function openEditModal(commentId) {
+    const comment = findCommentById(commentId);
+    if (!comment) return;
+    
+    // Проверяем что это свой комментарий
+    if (comment.authorId !== state.user.id) return;
+    
+    // Проверяем что комментарий не старше 24 часов
+    const commentAge = Date.now() - new Date(comment.createdAt).getTime();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 часа
+    if (commentAge > maxAge) {
+      alert("Редактирование доступно только в течение 24 часов после публикации");
+      return;
+    }
+    
+    state.editCommentId = commentId;
+    el.editTextarea.value = comment.text;
+    el.editCharCounter.textContent = comment.text.length;
+    el.editModal.hidden = false;
+    el.editTextarea.focus();
+  }
+
+  function closeEditModal() {
+    state.editCommentId = null;
+    el.editTextarea.value = "";
+    el.editCharCounter.textContent = "0";
+    el.editModal.hidden = true;
+  }
+
+  async function saveEditedComment() {
+    if (!state.editCommentId) return;
+    
+    const newText = el.editTextarea.value.trim();
+    if (!newText) {
+      alert("Комментарий не может быть пустым");
+      return;
+    }
+    
+    if (newText.length > 4000) {
+      alert("Комментарий слишком длинный (максимум 4000 символов)");
+      return;
+    }
+    
+    const comment = findCommentById(state.editCommentId);
+    if (!comment) {
+      closeEditModal();
+      return;
+    }
+    
+    // Обновляем локально
+    comment.text = newText;
+    comment.editedAt = new Date().toISOString();
+    comment.editCount = (comment.editCount || 0) + 1;
+    
+    saveComments();
+    render();
+    closeEditModal();
+    
+    // Отправляем на сервер (пока просто логируем, API редактирования будет позже)
+    console.log("[DEBUG] Comment edited:", { id: state.editCommentId, newText });
+    // TODO: Добавить API вызов для редактирования на сервере
   }
 
   async function deleteCommentForMe(commentId) {
@@ -621,7 +1057,9 @@
 
   function renderContextReactions() {
     el.contextReactions.innerHTML = "";
-    for (const emoji of REACTIONS) {
+    const availableReactions = getAvailableReactions();
+    
+    for (const emoji of availableReactions) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "reactionMenuBtn";
@@ -629,6 +1067,18 @@
       btn.setAttribute("aria-label", emoji);
       btn.textContent = emoji;
       el.contextReactions.appendChild(btn);
+    }
+    
+    // Если пользователь не премиум, добавляем подсказку о премиум-реакциях
+    if (!state.user.isPremium) {
+      const premiumHint = document.createElement("div");
+      premiumHint.className = "premium-reactions-hint";
+      premiumHint.innerHTML = `
+        <span class="premium-reactions-hint__icon">👑</span>
+        <span class="premium-reactions-hint__text">Больше реакций в премиум</span>
+      `;
+      premiumHint.style.cssText = "grid-column: 1 / -1; text-align: center; padding: 8px; font-size: 12px; color: rgba(255,255,255,0.7); border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4px;";
+      el.contextReactions.appendChild(premiumHint);
     }
   }
 
@@ -641,22 +1091,54 @@
     // Проверяем ограничение на 3 вида реакций
     const currentReactionTypes = Object.keys(item.reactions).filter(key => item.reactions[key] > 0);
     
-    if (current === emoji) {
-      // Убираем реакцию
-      item.reactions[emoji] = Math.max(0, Number(item.reactions[emoji] || 0) - 1);
-      delete item.reactedBy[state.user.id];
-    } else {
-      // Проверяем лимит на 3 вида реакций
-      if (!current && !currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
-        alert("Максимум 3 вида реакций на комментарий");
-        return;
-      }
+    // Для премиум-пользователей: множественные реакции
+    const isPremium = state.user.isPremium;
+    
+    if (isPremium) {
+      // Премиум: можно ставить несколько реакций
+      const userReactions = item.reactedBy[state.user.id];
+      const userReactionsArray = Array.isArray(userReactions) ? userReactions : (userReactions ? [userReactions] : []);
       
-      if (current) {
-        item.reactions[current] = Math.max(0, Number(item.reactions[current] || 0) - 1);
+      if (userReactionsArray.includes(emoji)) {
+        // Убираем эту реакцию
+        item.reactions[emoji] = Math.max(0, Number(item.reactions[emoji] || 0) - 1);
+        const newUserReactions = userReactionsArray.filter(e => e !== emoji);
+        if (newUserReactions.length === 0) {
+          delete item.reactedBy[state.user.id];
+        } else {
+          item.reactedBy[state.user.id] = newUserReactions;
+        }
+      } else {
+        // Добавляем новую реакцию
+        // Проверяем лимит на 3 вида реакций для комментария
+        if (!currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
+          alert("Максимум 3 вида реакций на комментарий");
+          return;
+        }
+        
+        item.reactions[emoji] = Number(item.reactions[emoji] || 0) + 1;
+        userReactionsArray.push(emoji);
+        item.reactedBy[state.user.id] = userReactionsArray;
       }
-      item.reactions[emoji] = Number(item.reactions[emoji] || 0) + 1;
-      item.reactedBy[state.user.id] = emoji;
+    } else {
+      // Обычный пользователь: только одна реакция
+      if (current === emoji) {
+        // Убираем реакцию
+        item.reactions[emoji] = Math.max(0, Number(item.reactions[emoji] || 0) - 1);
+        delete item.reactedBy[state.user.id];
+      } else {
+        // Проверяем лимит на 3 вида реакций
+        if (!current && !currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
+          alert("Максимум 3 вида реакций на комментарий");
+          return;
+        }
+        
+        if (current) {
+          item.reactions[current] = Math.max(0, Number(item.reactions[current] || 0) - 1);
+        }
+        item.reactions[emoji] = Number(item.reactions[emoji] || 0) + 1;
+        item.reactedBy[state.user.id] = emoji;
+      }
     }
     
     // Сохраняем локально
@@ -1050,6 +1532,74 @@
     }
   }
 
+  // Проверка премиум-статуса пользователя
+  async function apiCheckPremiumStatus(userId) {
+    if (!state.apiBase) return false;
+    try {
+      const resp = await fetch(`${state.apiBase}/api/premium/check?user_id=${encodeURIComponent(userId)}`, { 
+        method: "GET", 
+        headers: apiHeaders() 
+      });
+      const data = await resp.json();
+      return !!(resp.ok && data.ok && data.is_premium);
+    } catch {
+      return false;
+    }
+  }
+
+  // Загрузка настроек пользователя с сервера
+  async function apiLoadUserSettings() {
+    if (!state.apiBase || !isAuthorizedUser()) return null;
+    try {
+      const resp = await fetch(`${state.apiBase}/api/user/settings`, {
+        method: "GET",
+        headers: apiHeaders()
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return data.settings || null;
+    } catch (err) {
+      console.error("Failed to load user settings:", err);
+      return null;
+    }
+  }
+
+  // Сохранение настроек пользователя на сервер
+  async function apiSaveUserSettings(settings) {
+    if (!state.apiBase || !isAuthorizedUser()) return false;
+    try {
+      const resp = await fetch(`${state.apiBase}/api/user/settings`, {
+        method: "PUT",
+        headers: apiHeaders(),
+        body: JSON.stringify({ settings })
+      });
+      return resp.ok;
+    } catch (err) {
+      console.error("Failed to save user settings:", err);
+      return false;
+    }
+  }
+
+  // Получить доступные реакции для пользователя
+  function getAvailableReactions() {
+    if (state.user.isPremium) {
+      // Премиум-пользователи видят все реакции: базовые + премиум
+      return [...BASIC_REACTIONS, ...PREMIUM_REACTIONS];
+    } else {
+      // Обычные пользователи видят только базовые
+      return BASIC_REACTIONS;
+    }
+  }
+
+  // Проверить, является ли пользователь премиум
+  function isUserPremium(userId) {
+    if (userId === state.user.id) {
+      return state.user.isPremium;
+    }
+    // Проверяем кеш для других пользователей
+    return state.premiumUsers[userId] || false;
+  }
+
   async function sendMediaToPersonalChat(identifier, fileName, mediaType, authorName, commentText, authorId) {
     console.log(`[DEBUG] sendMediaToPersonalChat called:`, { identifier, fileName, mediaType, authorName, commentText, authorId });
     
@@ -1227,7 +1777,18 @@
       setAvatar(avatarEl, item.authorId, item.authorName, item.photo_url);
       
       const authorEl = node.querySelector(".bubble__author");
-      authorEl.textContent = item.authorName || "Пользователь";
+      
+      // Проверяем премиум-статус автора комментария
+      const isAuthorPremium = isUserPremium(item.authorId);
+      
+      // Добавляем значок премиум рядом с ником (в конце)
+      if (isAuthorPremium) {
+        authorEl.innerHTML = `${item.authorName || "Пользователь"} <span class="premium-badge"></span>`;
+        // Добавляем класс для подсветки комментария
+        node.classList.add("msg--premium");
+      } else {
+        authorEl.textContent = item.authorName || "Пользователь";
+      }
       
       // Добавляем обработчики кликов на автора и аватар
       if (!isMine) {
@@ -1245,7 +1806,15 @@
       }
       
       node.querySelector(".bubble__time").textContent = formatTime(item.createdAt);
-      node.querySelector(".bubble__text").textContent = item.text;
+      
+      // Применяем Markdown форматирование для премиум-пользователей
+      const textEl = node.querySelector(".bubble__text");
+      const isAuthorPremiumUser = isUserPremium(item.authorId);
+      if (isAuthorPremiumUser) {
+        textEl.innerHTML = parseMarkdown(item.text);
+      } else {
+        textEl.textContent = item.text;
+      }
       if (item.attachments?.length) {
         const attachmentsWrap = document.createElement("div");
         attachmentsWrap.className = "bubble__attachments";
@@ -1398,7 +1967,12 @@
         
         // Проверяем, поставил ли текущий пользователь эту реакцию
         const userReaction = item.reactedBy?.[state.user?.id];
-        if (userReaction === key) {
+        // Поддержка множественных реакций для премиум-пользователей
+        const hasReaction = Array.isArray(userReaction) 
+          ? userReaction.includes(key) 
+          : userReaction === key;
+        
+        if (hasReaction) {
           pill.className += " is-active";
         }
         
@@ -1966,6 +2540,251 @@
       applyBackgroundScheme();
       saveVisualSettings();
     });
+    
+    // Обработчик кликов по палитре премиум-цветов
+    el.premiumColorPalette?.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-premium-color]");
+      if (!target) return;
+      state.premiumColorScheme = target.dataset.premiumColor;
+      state.premiumColorMode = "presets";
+      applyPremiumColors();
+      saveVisualSettings();
+      
+      // Обновляем активный класс
+      el.premiumColorPalette.querySelectorAll(".premium-color-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.premiumColor === state.premiumColorScheme);
+      });
+      
+      // Перерендериваем комментарии чтобы применить новые цвета
+      render();
+    });
+    
+    // Обработчик переключения режима (готовые/кастомные цвета)
+    document.querySelectorAll('.premium-mode-btn[data-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        if (!mode) return;
+        
+        state.premiumColorMode = mode;
+        
+        // Обновляем активный класс кнопок
+        btn.parentElement.querySelectorAll('.premium-mode-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.mode === mode);
+        });
+        
+        // Показываем/скрываем соответствующие панели
+        const palette = document.getElementById('premiumColorPalette');
+        const picker = document.getElementById('premiumColorPicker');
+        
+        if (mode === 'presets') {
+          palette.hidden = false;
+          picker.hidden = true;
+        } else {
+          palette.hidden = true;
+          picker.hidden = false;
+        }
+        
+        saveVisualSettings();
+      });
+    });
+    
+    // Функция обновления color picker
+    function updateColorPicker(target, h, s, l) {
+      const hex = hslToHex(h, s, l);
+      
+      if (target === 'emoji') {
+        document.getElementById('valueHEmoji').textContent = h + '°';
+        document.getElementById('valueSEmoji').textContent = s + '%';
+        document.getElementById('valueLEmoji').textContent = l + '%';
+        document.getElementById('hexValueEmoji').textContent = hex;
+        document.getElementById('previewEmojiColor').style.background = hex;
+        document.getElementById('emojiColorPreview').style.background = hex;
+        
+        state.premiumEmojiColor = hex;
+        state.premiumEmojiMode = 'color';
+        
+        // Применяем только цвет эмодзи
+        document.documentElement.style.setProperty("--premium-emoji", `""`);
+        document.documentElement.style.setProperty("--premium-emoji-color", hex);
+        
+        saveVisualSettings();
+        render();
+      } else if (target === 'gradient1' || target === 'gradient2') {
+        const targetNum = target === 'gradient1' ? '1' : '2';
+        document.getElementById('valueHGradient' + targetNum).textContent = h + '°';
+        document.getElementById('valueSGradient' + targetNum).textContent = s + '%';
+        document.getElementById('valueLGradient' + targetNum).textContent = l + '%';
+        document.getElementById('hexValueGradient' + targetNum).textContent = hex;
+        document.getElementById('previewGradient' + targetNum).style.background = hex;
+        
+        state.customGradient = state.customGradient || {};
+        state.customGradient[target] = { h, s, l, hex };
+        
+        // Обновляем предпросмотр градиента
+        const color1 = state.customGradient.gradient1?.hex || '#0f5739';
+        const color2 = state.customGradient.gradient2?.hex || '#52c9eb';
+        const gradient = `linear-gradient(90deg, ${color1}, ${color2})`;
+        document.getElementById('gradientPreview').style.background = gradient;
+        
+        // Применяем градиент
+        state.bgMode = 'custom';
+        applyBackgroundScheme();
+        saveVisualSettings();
+      } else {
+        const targetNum = target;
+        document.getElementById('valueH' + targetNum).textContent = h + '°';
+        document.getElementById('valueS' + targetNum).textContent = s + '%';
+        document.getElementById('valueL' + targetNum).textContent = l + '%';
+        document.getElementById('hexValue' + targetNum).textContent = hex;
+        
+        const rgba1 = hexToRgba(hex, 0.21);
+        const rgba2 = hexToRgba(hex, 0.12);
+        const rgba3 = hexToRgba(hex, 0.08);
+        const rgbaBorder = hexToRgba(hex, 0.45);
+        const rgbaGlow = hexToRgba(hex, 0.2);
+        const rgbaName = hexToRgba(hex, 0.95);
+        
+        if (targetNum === '1') {
+          document.getElementById('previewColor1').style.background = rgba1;
+          document.documentElement.style.setProperty("--premium-color-1", rgba1);
+        } else if (targetNum === '2') {
+          document.getElementById('previewColor2').style.background = rgba2;
+          document.documentElement.style.setProperty("--premium-color-2", rgba2);
+        }
+        
+        // Автоматически обновляем остальные параметры
+        document.documentElement.style.setProperty("--premium-color-3", rgba3);
+        document.documentElement.style.setProperty("--premium-border", rgbaBorder);
+        document.documentElement.style.setProperty("--premium-glow", rgbaGlow);
+        document.documentElement.style.setProperty("--premium-name-color", rgbaName);
+        
+        state.premiumCustomColors = state.premiumCustomColors || {};
+        state.premiumCustomColors['color' + targetNum] = { h, s, l, hex };
+        state.premiumCustomColors.color1 = rgba1;
+        state.premiumCustomColors.color2 = rgba2;
+        state.premiumCustomColors.color3 = rgba3;
+        state.premiumCustomColors.border = rgbaBorder;
+        state.premiumCustomColors.glow = rgbaGlow;
+        state.premiumCustomColors.nameColor = rgbaName;
+        
+        saveVisualSettings();
+        render();
+      }
+    }
+    
+    // Обработчики слайдеров
+    document.querySelectorAll('.mobile-color-picker__slider').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const target = e.target.dataset.target;
+        const channel = e.target.dataset.channel;
+        
+        let h, s, l;
+        if (target === 'emoji') {
+          h = parseInt(document.querySelector('[data-target="emoji"][data-channel="h"]').value);
+          s = parseInt(document.querySelector('[data-target="emoji"][data-channel="s"]').value);
+          l = parseInt(document.querySelector('[data-target="emoji"][data-channel="l"]').value);
+        } else {
+          h = parseInt(document.querySelector(`[data-target="${target}"][data-channel="h"]`).value);
+          s = parseInt(document.querySelector(`[data-target="${target}"][data-channel="s"]`).value);
+          l = parseInt(document.querySelector(`[data-target="${target}"][data-channel="l"]`).value);
+        }
+        
+        updateColorPicker(target, h, s, l);
+      });
+    });
+    
+    // Обработчики пресетов для эмодзи
+    document.querySelectorAll('.mobile-color-picker__preset').forEach(preset => {
+      preset.addEventListener('click', (e) => {
+        const hex = e.target.dataset.color;
+        const hsl = hexToHsl(hex);
+        
+        document.querySelector('[data-target="emoji"][data-channel="h"]').value = hsl.h;
+        document.querySelector('[data-target="emoji"][data-channel="s"]').value = hsl.s;
+        document.querySelector('[data-target="emoji"][data-channel="l"]').value = hsl.l;
+        
+        updateColorPicker('emoji', hsl.h, hsl.s, hsl.l);
+      });
+    });
+    
+    // Обработчик переключения режима эмодзи (эмодзи/цветная заливка)
+    document.querySelectorAll('.premium-mode-btn[data-emoji-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.emojiMode;
+        if (!mode) return;
+        
+        state.premiumEmojiMode = mode;
+        
+        // Обновляем активный класс кнопок
+        btn.parentElement.querySelectorAll('.premium-mode-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.emojiMode === mode);
+        });
+        
+        // Показываем/скрываем соответствующие панели
+        const emojiPalette = document.getElementById('premiumEmojiPalette');
+        const colorPicker = document.getElementById('premiumEmojiColorPicker');
+        
+        if (mode === 'emoji') {
+          emojiPalette.hidden = false;
+          colorPicker.hidden = true;
+        } else {
+          emojiPalette.hidden = true;
+          colorPicker.hidden = false;
+        }
+        
+        applyPremiumColors();
+        saveVisualSettings();
+        render();
+      });
+    });
+    
+    // Обработчик переключения режима градиента (готовые/кастомный)
+    document.querySelectorAll('.premium-mode-btn[data-bg-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.bgMode;
+        if (!mode) return;
+        
+        state.bgMode = mode;
+        
+        // Обновляем активный класс кнопок
+        btn.parentElement.querySelectorAll('.premium-mode-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.bgMode === mode);
+        });
+        
+        // Показываем/скрываем соответствующие панели
+        const palette = document.getElementById('paletteGrid');
+        const picker = document.getElementById('customGradientPicker');
+        
+        if (mode === 'presets') {
+          palette.hidden = false;
+          picker.hidden = true;
+        } else {
+          palette.hidden = true;
+          picker.hidden = false;
+        }
+        
+        applyBackgroundScheme();
+        saveVisualSettings();
+      });
+    });
+    
+    // Обработчик кликов по палитре премиум-эмодзи
+    el.premiumEmojiPalette?.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-premium-emoji]");
+      if (!target) return;
+      state.premiumEmoji = target.dataset.premiumEmoji;
+      applyPremiumColors();
+      saveVisualSettings();
+      
+      // Обновляем активный класс
+      el.premiumEmojiPalette.querySelectorAll(".premium-emoji-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.premiumEmoji === state.premiumEmoji);
+      });
+      
+      // Перерендериваем комментарии чтобы применить новый эмодзи
+      render();
+    });
+    
     el.openBotBtn?.addEventListener("click", () => {
       const botUrl = "https://max.ru/id911114411208_3_bot";
       const webApp = getWebApp();
@@ -2145,6 +2964,10 @@
         el.commentInput.focus();
       }
 
+      if (action === "edit") {
+        openEditModal(item.id);
+      }
+
       if (action === "copy") {
         await navigator.clipboard.writeText(item.text || "");
       }
@@ -2267,16 +3090,40 @@
       if (e.key === "Escape" && !el.deleteModal.hidden) {
         closeDeleteModal();
       }
+      if (e.key === "Escape" && !el.editModal.hidden) {
+        closeEditModal();
+      }
+    });
+
+    // Обработчики для модального окна редактирования
+    el.editSaveBtn?.addEventListener("click", () => {
+      saveEditedComment();
+    });
+
+    el.editCancelBtn?.addEventListener("click", closeEditModal);
+    el.editCloseBtn?.addEventListener("click", closeEditModal);
+
+    // Обновление счетчика символов
+    el.editTextarea?.addEventListener("input", () => {
+      el.editCharCounter.textContent = el.editTextarea.value.length;
+    });
+
+    // Закрытие модального окна редактирования по клику на overlay
+    el.editModal?.addEventListener("click", (e) => {
+      if (e.target === el.editModal || e.target.classList.contains("deleteModal__overlay")) {
+        closeEditModal();
+      }
     });
 
   }
 
-  function boot() {
+  async function boot() {
     setThemeFromMax();
     ensureUserIdentity();
-    loadVisualSettings();
+    await loadVisualSettings();
     applyTheme();
     applyBackgroundScheme();
+    applyPremiumColors();
     state.apiBase = getApiBase();
     state.postId = resolvePostId();
     state.postLink = resolvePostLink(state.postId);
@@ -2322,9 +3169,38 @@
       syncAuthUiState();
     }, 2500);
     loadComments();
-    loadCommentsFromServer().then(() => {
+    loadCommentsFromServer().then(async () => {
       // Инициализируем счетчик после первой загрузки
       lastCommentCount = state.comments.length;
+      
+      // Загружаем премиум-статус текущего пользователя
+      if (state.user.id && state.apiBase) {
+        try {
+          const isPremium = await apiCheckPremiumStatus(state.user.id);
+          state.user.isPremium = isPremium;
+          console.log(`[DEBUG] User premium status loaded: ${isPremium}`);
+          
+          // Загружаем премиум-статусы авторов комментариев
+          const authorIds = [...new Set(state.comments.map(c => c.authorId))];
+          for (const authorId of authorIds) {
+            if (authorId && authorId !== state.user.id) {
+              try {
+                const authorPremium = await apiCheckPremiumStatus(authorId);
+                state.premiumUsers[authorId] = authorPremium;
+              } catch (e) {
+                console.warn(`Failed to load premium status for user ${authorId}:`, e);
+              }
+            }
+          }
+          
+          // Перерисовываем комментарии с учетом премиум-статусов
+          render();
+          renderContextReactions();
+        } catch (e) {
+          console.warn("Failed to load premium status:", e);
+        }
+      }
+      
       // Запускаем real-time обновления
       startRealTimeUpdates();
     });
@@ -2527,6 +3403,23 @@
         }
       }).join("");
     }
+    
+    // Рендеринг палитры премиум-цветов
+    if (el.premiumColorPalette) {
+      el.premiumColorPalette.innerHTML = PREMIUM_COLOR_SCHEMES.map((scheme) => {
+        const isActive = state.premiumColorScheme === scheme.id;
+        return `<button type="button" class="premium-color-item ${isActive ? 'active' : ''}" data-premium-color="${scheme.id}" style="background:linear-gradient(135deg, ${scheme.color1} 0%, ${scheme.color2} 50%, ${scheme.color3} 100%); border-color: ${scheme.border}; color: ${scheme.glow};" aria-label="${scheme.label}"></button>`;
+      }).join("");
+    }
+    
+    // Рендеринг палитры премиум-эмодзи
+    if (el.premiumEmojiPalette) {
+      el.premiumEmojiPalette.innerHTML = PREMIUM_EMOJIS.map((emoji) => {
+        const isActive = state.premiumEmoji === emoji;
+        return `<button type="button" class="premium-emoji-item ${isActive ? 'active' : ''}" data-premium-emoji="${emoji}" aria-label="Эмодзи ${emoji}">${emoji}</button>`;
+      }).join("");
+    }
+    
     render();
     syncScrollDownButton();
   }
