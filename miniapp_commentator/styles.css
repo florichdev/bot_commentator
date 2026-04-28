@@ -261,6 +261,11 @@ body::before{
   width: min(680px, 100%);
   max-width: 100%;
   animation: msgIn 0.24s ease-out;
+  /* iOS: предотвращаем выделение текста при тапе */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
 }
 .msg--mine,
 .msg--other{
@@ -294,6 +299,8 @@ body::before{
   justify-content: center;
   text-transform: uppercase;
   overflow: hidden;
+  /* iOS: по умолчанию не перехватываем клики, но можем включить через JS */
+  pointer-events: none;
 }
 
 .msg__avatar .avatar-img {
@@ -315,6 +322,11 @@ body::before{
   transition: background-color 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
   box-sizing: border-box;
   overflow: hidden;
+  /* iOS: предотвращаем выделение текста */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 .theme-light .bubble{
   background: rgba(255,255,255,0.94);
@@ -335,23 +347,31 @@ body::before{
   gap:8px;
   align-items:center;
   margin-bottom: 4px;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .bubble__author{
   font-size:12px;
   font-weight:700;
   opacity:0.95;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .bubble__text{
   font-size: 15px;
   line-height: 1.4;
   white-space:pre-wrap;
   word-break:break-word;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .bubble__reactions{
   margin-top: 10px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  /* iOS: разрешаем обработку событий для реакций */
+  pointer-events: auto;
 }
 .reactionBtn{
   border: 1px solid rgba(255,255,255,0.18);
@@ -373,6 +393,9 @@ body::before{
   padding: 5px 8px;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
+  /* iOS: разрешаем обработку событий для реакций */
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
 }
 .theme-light .reactionPill{
   border: 1px solid rgba(30,54,79,0.24);
@@ -414,11 +437,15 @@ body::before{
   align-items:center;
   justify-content:space-between;
   gap:10px;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .bubble__time{
   font-size: 11px;
   color: var(--time);
   opacity:0.95;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .bubble__actions{
   display:none;
@@ -669,6 +696,8 @@ body::before{
   border-radius: 12px;
   overflow: hidden;
   box-sizing: border-box;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .replyPreview--inBubble .replyPreview__author{
   display: block;
@@ -679,6 +708,8 @@ body::before{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .replyPreview--inBubble .replyPreview__text{
   display: block;
@@ -693,6 +724,8 @@ body::before{
   -webkit-box-orient: vertical;
   word-break: break-word;
   line-height: 1.3;
+  /* iOS: дочерние элементы не перехватывают клики */
+  pointer-events: none;
 }
 .theme-light .replyPreview--inBubble{
   background: rgba(255,255,255,0.72);
@@ -784,6 +817,8 @@ body::before{
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  /* iOS: разрешаем обработку событий для вложений */
+  pointer-events: auto;
 }
 .attachImage{
   max-width: 100%;
@@ -791,6 +826,9 @@ body::before{
   overflow: hidden;
   cursor: pointer;
   transition: opacity 0.2s;
+  /* iOS: разрешаем обработку событий для вложений */
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
 }
 .attachImage:hover{
   opacity: 0.9;
@@ -812,6 +850,9 @@ body::before{
   padding: 4px 8px;
   font-size: 12px;
   transition: opacity 0.2s, background 0.2s;
+  /* iOS: разрешаем обработку событий для вложений */
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
 }
 .attachChip:hover{
   opacity: 0.8;
