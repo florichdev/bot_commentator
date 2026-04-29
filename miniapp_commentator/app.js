@@ -689,6 +689,36 @@
       document.documentElement.style.setProperty("--premium-emoji-color", "transparent");
     }
   }
+  
+  /**
+   * Обновляет блокировку кастомного градиента в зависимости от премиум-статуса
+   */
+  function updateCustomGradientLock() {
+    const customGradientPicker = document.getElementById('customGradientPicker');
+    if (!customGradientPicker) return;
+    
+    // Ищем существующее сообщение о блокировке
+    let lockMessage = customGradientPicker.querySelector('.custom-gradient-lock-message');
+    
+    if (state.user.isPremium) {
+      // Если премиум - удаляем сообщение о блокировке
+      if (lockMessage) {
+        lockMessage.remove();
+      }
+    } else {
+      // Если не премиум - добавляем/обновляем сообщение о блокировке
+      if (!lockMessage) {
+        lockMessage = document.createElement('div');
+        lockMessage.className = 'custom-gradient-lock-message';
+        lockMessage.style.cssText = 'margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: center;';
+        lockMessage.innerHTML = `
+          <div style="font-size: 14px; line-height: 1.5; opacity: 0.9; margin-bottom: 12px;">🔒 Для разблокировки премиум-функций оформите подписку в боте через /subscribe</div>
+          <button class="premium-buy-btn" onclick="openBotSubscribe()" type="button">👑 Купить премиум</button>
+        `;
+        customGradientPicker.appendChild(lockMessage);
+      }
+    }
+  }
 
   /**
    * Применяет индивидуальные премиум стили к элементу комментария
@@ -2639,8 +2669,19 @@
       render();
       syncScrollDownButton();
     });
-    el.settingsBtn?.addEventListener("click", () => {
+    el.settingsBtn?.addEventListener("click", async () => {
       el.settingsModal.hidden = false;
+      
+      // КРИТИЧЕСКИ ВАЖНО: Перезагружаем премиум-статус перед открытием настроек
+      if (state.user.id && state.apiBase) {
+        try {
+          const isPremium = await apiCheckPremiumStatus(state.user.id);
+          state.user.isPremium = isPremium;
+          console.log(`[DEBUG] Premium status reloaded on settings open: ${isPremium}`);
+        } catch (e) {
+          console.warn("Failed to reload premium status:", e);
+        }
+      }
       
       // Проверяем премиум-статус и показываем/скрываем премиум-настройки
       const premiumSections = document.querySelectorAll('.premium-settings-section');
@@ -2651,7 +2692,18 @@
           // Удаляем заглушку если она есть
           const lockedMsg = section.querySelector('.premium-locked-message');
           if (lockedMsg) lockedMsg.remove();
+          
+          // Показываем все дочерние элементы
+          const children = Array.from(section.children);
+          children.forEach(child => {
+            if (!child.classList.contains('premium-locked-message')) {
+              child.style.display = '';
+            }
+          });
         });
+        
+        // Обновляем блокировку кастомного градиента
+        updateCustomGradientLock();
       } else {
         // Скрываем настройки и показываем заглушку
         premiumSections.forEach(section => {
@@ -2676,6 +2728,9 @@
             section.appendChild(lockedMsg);
           }
         });
+        
+        // Обновляем блокировку кастомного градиента
+        updateCustomGradientLock();
       }
     });
     el.settingsCloseBtn?.addEventListener("click", () => {
@@ -2767,6 +2822,8 @@
         } else {
           palette.hidden = true;
           picker.hidden = false;
+          // Обновляем блокировку при показе кастомного градиента
+          updateCustomGradientLock();
         }
         
         saveVisualSettings();
