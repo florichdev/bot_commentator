@@ -752,53 +752,82 @@
   function applyUserPremiumStyles(comment, element) {
     if (!comment || !element) return;
     
+    console.log("[DEBUG] applyUserPremiumStyles called for comment:", comment.id, "author:", comment.authorName);
+    console.log("[DEBUG] Comment premium settings:", {
+      premium_color_scheme: comment.premium_color_scheme,
+      premium_emoji: comment.premium_emoji,
+      premium_emoji_mode: comment.premium_emoji_mode,
+      premium_emoji_color: comment.premium_emoji_color
+    });
+    
     // Определяем цвета автора комментария
     let colors;
     
     if (comment.premium_custom_colors) {
       // Используем кастомные цвета автора
       colors = comment.premium_custom_colors;
+      console.log("[DEBUG] Using custom colors:", colors);
     } else if (comment.premium_color_scheme) {
       // Используем предустановленную схему автора
       const colorScheme = PREMIUM_COLOR_SCHEMES.find((item) => item.id === comment.premium_color_scheme);
       colors = colorScheme || PREMIUM_COLOR_SCHEMES[0];
+      console.log("[DEBUG] Using color scheme:", comment.premium_color_scheme, colors);
     } else {
       // Дефолтная золотая схема
       colors = PREMIUM_COLOR_SCHEMES[0];
+      console.log("[DEBUG] Using default gold scheme");
     }
     
-    // Применяем цвета через inline стили к элементу
+    // Применяем цвета через inline стили к элементу (ВАЖНО: !important для перезаписи CSS переменных)
     const bubble = element.querySelector('.bubble');
     const authorEl = element.querySelector('.bubble__author');
     const avatarEl = element.querySelector('.msg__avatar');
     
     if (bubble) {
       // Применяем градиент фона к сообщению
-      bubble.style.background = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 50%, ${colors.color3} 100%)`;
+      bubble.style.setProperty('background', `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 50%, ${colors.color3} 100%)`, 'important');
       // Применяем цвет рамки сообщения
-      bubble.style.borderColor = colors.border;
+      bubble.style.setProperty('border-color', colors.border, 'important');
       // Применяем свечение
-      bubble.style.boxShadow = `0 0 20px ${colors.glow}`;
+      bubble.style.setProperty('box-shadow', `0 0 20px ${colors.glow}`, 'important');
+      console.log("[DEBUG] Applied bubble styles");
     }
     
     if (authorEl) {
       // Применяем цвет имени
-      authorEl.style.color = colors.nameColor;
+      authorEl.style.setProperty('color', colors.nameColor, 'important');
+      console.log("[DEBUG] Applied author color:", colors.nameColor);
     }
     
     if (avatarEl) {
       // Применяем цвет рамки аватарки
-      avatarEl.style.borderColor = colors.border;
-      avatarEl.style.boxShadow = `0 0 12px ${colors.glow}`;
+      avatarEl.style.setProperty('border-color', colors.border, 'important');
+      avatarEl.style.setProperty('box-shadow', `0 0 12px ${colors.glow}`, 'important');
+      console.log("[DEBUG] Applied avatar styles");
     }
     
-    // Применяем цвет эмодзи если используется режим заливки
-    if (comment.premium_emoji_mode === 'color' && comment.premium_emoji_color) {
-      const badge = element.querySelector('.premium-badge');
-      if (badge) {
-        badge.style.setProperty('--premium-emoji-color', comment.premium_emoji_color);
+    // Применяем эмодзи или цветную заливку
+    const badge = element.querySelector('.premium-badge');
+    if (badge) {
+      if (comment.premium_emoji_mode === 'color' && comment.premium_emoji_color) {
+        // Режим цветной заливки
+        badge.style.setProperty('--premium-emoji', '""', 'important');
+        badge.style.setProperty('--premium-emoji-color', comment.premium_emoji_color, 'important');
+        badge.style.setProperty('background-color', comment.premium_emoji_color, 'important');
+        badge.textContent = ''; // Убираем эмодзи
+        console.log("[DEBUG] Applied color mode:", comment.premium_emoji_color);
+      } else if (comment.premium_emoji) {
+        // Режим эмодзи
+        badge.style.setProperty('--premium-emoji', `"${comment.premium_emoji}"`, 'important');
+        badge.style.setProperty('--premium-emoji-color', 'transparent', 'important');
+        badge.style.setProperty('background-color', 'transparent', 'important');
+        // КРИТИЧНО: Устанавливаем эмодзи напрямую
+        badge.textContent = comment.premium_emoji;
+        console.log("[DEBUG] Applied emoji mode:", comment.premium_emoji);
       }
     }
+    
+    console.log("[DEBUG] applyUserPremiumStyles completed for comment:", comment.id);
   }
 
   async function loadVisualSettings() {
@@ -1645,31 +1674,29 @@
         : text;
         
       console.log("[DEBUG] Sending request to:", `${state.apiBase}/api/comments`);
-      console.log("[DEBUG] Request payload:", {
+      
+      const requestPayload = {
         post_id: state.postId,
         author_id: state.user.id,
         author_name: state.user.name,
-        text: payloadText.substring(0, 100)
-      });
+        author_photo_url: state.user.photo_url,
+        text: payloadText,
+        reply_to: state.replyTo,
+        // Добавляем премиум-настройки если пользователь премиум
+        premium_color_scheme: state.user.isPremium ? state.premiumColorScheme : null,
+        premium_color_mode: state.user.isPremium ? state.premiumColorMode : null,
+        premium_custom_colors: state.user.isPremium ? state.premiumCustomColors : null,
+        premium_emoji: state.user.isPremium ? state.premiumEmoji : null,
+        premium_emoji_mode: state.user.isPremium ? state.premiumEmojiMode : null,
+        premium_emoji_color: state.user.isPremium ? state.premiumEmojiColor : null,
+      };
+      
+      console.log("[DEBUG] Request payload:", requestPayload);
       
       const resp = await fetch(`${state.apiBase}/api/comments`, {
         method: "POST",
         headers: apiHeaders(),
-        body: JSON.stringify({
-          post_id: state.postId,
-          author_id: state.user.id,
-          author_name: state.user.name,
-          author_photo_url: state.user.photo_url,
-          text: payloadText,
-          reply_to: state.replyTo,
-          // Добавляем премиум-настройки если пользователь премиум
-          premium_color_scheme: state.user.isPremium ? state.premiumColorScheme : null,
-          premium_color_mode: state.user.isPremium ? state.premiumColorMode : null,
-          premium_custom_colors: state.user.isPremium ? state.premiumCustomColors : null,
-          premium_emoji: state.user.isPremium ? state.premiumEmoji : null,
-          premium_emoji_mode: state.user.isPremium ? state.premiumEmojiMode : null,
-          premium_emoji_color: state.user.isPremium ? state.premiumEmojiColor : null,
-        }),
+        body: JSON.stringify(requestPayload),
       });
       
       console.log("[DEBUG] Response status:", resp.status);
@@ -2038,7 +2065,10 @@
       if (isAuthorPremium) {
         // Используем premium_emoji из данных комментария (если есть), иначе дефолтный
         const authorPremiumEmoji = item.premium_emoji || '👑';
-        authorEl.innerHTML = `${item.authorName || "Пользователь"} <span class="premium-badge" style="--premium-emoji: '${authorPremiumEmoji}';"></span>`;
+        const badgeStyle = item.premium_emoji_mode === 'color' && item.premium_emoji_color 
+          ? `background-color: ${item.premium_emoji_color}; --premium-emoji-color: ${item.premium_emoji_color};`
+          : `--premium-emoji: '${authorPremiumEmoji}';`;
+        authorEl.innerHTML = `${item.authorName || "Пользователь"} <span class="premium-badge" style="${badgeStyle}">${item.premium_emoji_mode === 'emoji' ? authorPremiumEmoji : ''}</span>`;
         // Добавляем класс для подсветки комментария
         node.classList.add("msg--premium");
         
