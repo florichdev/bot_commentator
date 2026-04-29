@@ -828,6 +828,11 @@
           console.log("[DEBUG] Applied premiumCustomColors:", state.premiumCustomColors);
         }
         
+        // Применяем загруженные настройки к интерфейсу
+        applyTheme();
+        applyBackgroundScheme();
+        applyPremiumColors();
+        
         console.log("[DEBUG] loadVisualSettings: Successfully loaded from server");
         return; // Успешно загрузили с сервера
       }
@@ -883,6 +888,11 @@
         console.error("Failed to parse custom colors:", e);
       }
     }
+    
+    // Применяем загруженные настройки к интерфейсу
+    applyTheme();
+    applyBackgroundScheme();
+    applyPremiumColors();
   }
 
   // Debounced версия saveVisualSettings для оптимизации
@@ -904,6 +914,8 @@
     }
     
     // Сохраняем на сервер (если доступен)
+    console.log("[DEBUG] Attempting to save to server. apiBase:", state.apiBase, "isAuthorized:", isAuthorizedUser());
+    
     if (state.apiBase && isAuthorizedUser()) {
       const settings = {
         themeMode: state.themeMode,
@@ -926,6 +938,8 @@
       } else {
         console.warn("[DEBUG] Failed to save settings to server, using localStorage only");
       }
+    } else {
+      console.warn("[DEBUG] Skipping server save - apiBase or auth not available");
     }
   }, 500); // Debounce 500ms
 
