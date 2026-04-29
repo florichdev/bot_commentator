@@ -812,20 +812,18 @@
     const badge = element.querySelector('.premium-badge');
     if (badge) {
       if (comment.premium_emoji_mode === 'color' && comment.premium_emoji_color) {
-        // Режим цветной заливки
-        badge.style.setProperty('--premium-emoji', '""', 'important');
-        badge.style.setProperty('--premium-emoji-color', comment.premium_emoji_color, 'important');
-        badge.style.setProperty('background-color', comment.premium_emoji_color, 'important');
-        badge.textContent = ''; // Убираем эмодзи
-        console.log("[DEBUG] Applied color mode:", comment.premium_emoji_color);
-      } else if (comment.premium_emoji) {
-        // Режим эмодзи
-        badge.style.setProperty('--premium-emoji', `"${comment.premium_emoji}"`, 'important');
-        badge.style.setProperty('--premium-emoji-color', 'transparent', 'important');
-        badge.style.setProperty('background-color', 'transparent', 'important');
-        // КРИТИЧНО: Устанавливаем эмодзи напрямую
-        badge.textContent = comment.premium_emoji;
-        console.log("[DEBUG] Applied emoji mode:", comment.premium_emoji);
+        // Режим цветной заливки - применяем bloom эффект
+        badge.style.setProperty('--bloom-color', comment.premium_emoji_color, 'important');
+        badge.style.setProperty('text-shadow', `0 0 8px ${comment.premium_emoji_color}, 0 0 16px ${comment.premium_emoji_color}40, 0 0 24px ${comment.premium_emoji_color}20`, 'important');
+        badge.style.setProperty('filter', `drop-shadow(0 0 4px ${comment.premium_emoji_color}) drop-shadow(0 0 8px ${comment.premium_emoji_color}60)`, 'important');
+        badge.classList.add('premium-badge--bloom');
+        console.log("[DEBUG] Applied bloom effect with color:", comment.premium_emoji_color);
+      } else {
+        // Режим обычного эмодзи или отключен - убираем эффекты
+        badge.style.removeProperty('text-shadow');
+        badge.style.removeProperty('filter');
+        badge.classList.remove('premium-badge--bloom');
+        console.log("[DEBUG] Applied normal emoji mode");
       }
     }
     
@@ -1173,8 +1171,18 @@
   }
 
   function openEditModal(commentId) {
+    console.log("[DEBUG] openEditModal called with commentId:", commentId);
+    
+    if (!commentId) {
+      console.error("[DEBUG] openEditModal: commentId is null or undefined");
+      return;
+    }
+    
     const comment = findCommentById(commentId);
-    if (!comment) return;
+    if (!comment) {
+      console.error("[DEBUG] openEditModal: comment not found for ID:", commentId);
+      return;
+    }
     
     // Проверяем что это свой комментарий
     if (comment.authorId !== state.user.id) return;
@@ -1192,6 +1200,8 @@
     el.editCharCounter.textContent = comment.text.length;
     el.editModal.hidden = false;
     el.editTextarea.focus();
+    
+    console.log("[DEBUG] openEditModal: set editCommentId to:", state.editCommentId);
   }
 
   function closeEditModal() {
@@ -1259,7 +1269,10 @@
   }
 
   async function saveEditedComment() {
-    if (!state.editCommentId) return;
+    if (!state.editCommentId) {
+      console.error("[DEBUG] saveEditedComment: editCommentId is null or undefined");
+      return;
+    }
     
     const newText = el.editTextarea.value.trim();
     if (!newText) {
@@ -1274,9 +1287,12 @@
     
     const comment = findCommentById(state.editCommentId);
     if (!comment) {
+      console.error("[DEBUG] saveEditedComment: comment not found for ID:", state.editCommentId);
       closeEditModal();
       return;
     }
+    
+    console.log("[DEBUG] saveEditedComment: editing comment ID:", state.editCommentId);
     
     // Обновляем локально
     comment.text = newText;
@@ -2105,11 +2121,19 @@
         
         let badgeHtml = '';
         
-        if (item.premium_emoji_mode === 'color' && item.premium_emoji_color) {
-          // Режим цветной заливки - показываем цветной квадрат
-          badgeHtml = `<span class="premium-badge" style="background-color: ${item.premium_emoji_color}; width: 16px; height: 16px; border-radius: 3px; display: inline-block; margin-left: 4px;"></span>`;
+        if (item.premium_emoji_mode === 'none') {
+          // Режим отключен - не показываем эмодзи вообще
+          badgeHtml = '';
+        } else if (item.premium_emoji_mode === 'color' && item.premium_emoji_color) {
+          // Режим цветной заливки - показываем эмодзи с цветным bloom эффектом
+          badgeHtml = `<span class="premium-badge premium-badge--bloom" style="
+            --bloom-color: ${item.premium_emoji_color}; 
+            text-shadow: 0 0 8px ${item.premium_emoji_color}, 0 0 16px ${item.premium_emoji_color}40, 0 0 24px ${item.premium_emoji_color}20;
+            filter: drop-shadow(0 0 4px ${item.premium_emoji_color}) drop-shadow(0 0 8px ${item.premium_emoji_color}60);
+            margin-left: 4px;
+          ">${authorPremiumEmoji}</span>`;
         } else {
-          // Режим эмодзи - показываем эмодзи
+          // Режим обычного эмодзи - показываем эмодзи без эффектов
           badgeHtml = `<span class="premium-badge" style="margin-left: 4px;">${authorPremiumEmoji}</span>`;
         }
         
@@ -3119,14 +3143,20 @@
         document.documentElement.style.setProperty("--premium-glow", rgbaGlow);
         document.documentElement.style.setProperty("--premium-name-color", rgbaName);
         
-        state.premiumCustomColors = state.premiumCustomColors || {};
-        state.premiumCustomColors['color' + targetNum] = { h, s, l, hex };
-        state.premiumCustomColors.color1 = rgba1;
-        state.premiumCustomColors.color2 = rgba2;
-        state.premiumCustomColors.color3 = rgba3;
-        state.premiumCustomColors.border = rgbaBorder;
-        state.premiumCustomColors.glow = rgbaGlow;
-        state.premiumCustomColors.nameColor = rgbaName;
+        // КРИТИЧНО: Сохраняем кастомные цвета в правильном формате
+        state.premiumCustomColors = {
+          color1: rgba1,
+          color2: rgba2,
+          color3: rgba3,
+          border: rgbaBorder,
+          glow: rgbaGlow,
+          nameColor: rgbaName,
+          // Сохраняем исходные HSL значения для восстановления
+          gradient1: { h, s, l, hex },
+          gradient2: targetNum === 1 ? (state.premiumCustomColors?.gradient2 || { h: 240, s: 100, l: 50, hex: '#0080FF' }) : { h, s, l, hex }
+        };
+        
+        console.log("[DEBUG] Updated premiumCustomColors:", state.premiumCustomColors);
         
         saveVisualSettings();
         render();
