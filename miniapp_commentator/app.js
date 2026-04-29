@@ -716,17 +716,26 @@
     // Применяем цвета через inline стили к элементу
     const bubble = element.querySelector('.bubble');
     const authorEl = element.querySelector('.bubble__author');
+    const avatarEl = element.querySelector('.msg__avatar');
     
     if (bubble) {
-      // Применяем градиент фона
+      // Применяем градиент фона к сообщению
       bubble.style.background = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 50%, ${colors.color3} 100%)`;
+      // Применяем цвет рамки сообщения
       bubble.style.borderColor = colors.border;
+      // Применяем свечение
       bubble.style.boxShadow = `0 0 20px ${colors.glow}`;
     }
     
     if (authorEl) {
       // Применяем цвет имени
       authorEl.style.color = colors.nameColor;
+    }
+    
+    if (avatarEl) {
+      // Применяем цвет рамки аватарки
+      avatarEl.style.borderColor = colors.border;
+      avatarEl.style.boxShadow = `0 0 12px ${colors.glow}`;
     }
     
     // Применяем цвет эмодзи если используется режим заливки
