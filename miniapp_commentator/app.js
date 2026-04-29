@@ -1052,6 +1052,15 @@
     normalized.replyTo = normalized.replyTo || null;
     normalized.photo_url = normalized.photo_url || null; // Сохраняем аватарку
     normalized.selected = normalized.selected || false; // Сохраняем состояние выбора
+    
+    // КРИТИЧНО: Сохраняем премиум-поля
+    normalized.premium_color_scheme = item.premium_color_scheme || null;
+    normalized.premium_color_mode = item.premium_color_mode || null;
+    normalized.premium_custom_colors = item.premium_custom_colors || null;
+    normalized.premium_emoji = item.premium_emoji || null;
+    normalized.premium_emoji_mode = item.premium_emoji_mode || null;
+    normalized.premium_emoji_color = item.premium_emoji_color || null;
+    
     if (!normalized.attachments || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     } else {
@@ -1425,17 +1434,30 @@
   }
 
   async function loadCommentsFromServer() {
-    if (!state.apiBase) return;
+    console.log("[DEBUG] loadCommentsFromServer called");
+    console.log("[DEBUG] state.apiBase:", state.apiBase);
+    console.log("[DEBUG] state.postId:", state.postId);
+    
+    if (!state.apiBase) {
+      console.log("[DEBUG] No apiBase, skipping server load");
+      return;
+    }
     
     // Защита: не загружаем комментарии с сервера если postId = "default-post"
     if (state.postId === "default-post") {
+      console.log("[DEBUG] Default post, clearing comments");
       state.comments = [];
       render();
       return;
     }
     
+    console.log("[DEBUG] Calling apiListComments...");
     const serverComments = await apiListComments();
+    console.log("[DEBUG] apiListComments returned:", serverComments);
+    
     if (serverComments && serverComments.length >= 0) {
+      console.log("[DEBUG] Processing", serverComments.length, "comments from server");
+      
       // Сохраняем текущее состояние выбора перед обновлением
       const selectedMap = {};
       state.comments.forEach(comment => {
@@ -1447,6 +1469,7 @@
       // Обновляем из сервера и восстанавливаем состояние выбора
       state.comments = serverComments.map(serverComment => {
         const normalized = normalizeComment(serverComment);
+        console.log("[DEBUG] Normalized comment:", normalized.id, "premium_color_scheme:", normalized.premium_color_scheme);
         // Восстанавливаем selected если был выбран ранее
         if (selectedMap[normalized.id]) {
           normalized.selected = true;
@@ -1454,8 +1477,12 @@
         return normalized;
       });
       
+      console.log("[DEBUG] Updated state.comments with", state.comments.length, "items");
       saveComments();
       render();
+      console.log("[DEBUG] loadCommentsFromServer completed successfully");
+    } else {
+      console.log("[DEBUG] No comments received from server or error occurred");
     }
   }
 
