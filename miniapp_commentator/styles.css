@@ -1080,7 +1080,7 @@ body::before{
   margin-top: 12px;
   padding: 16px;
   background: rgba(255, 215, 0, 0.08);
-  border: 1px solid rgba(255, 215, 0, 0.25);
+  border: 2px solid rgba(255, 215, 0, 0.25);
   border-radius: 12px;
   text-align: center;
 }
@@ -1094,9 +1094,9 @@ body::before{
 
 .premium-buy-btn {
   background: linear-gradient(135deg, #ffd700, #ffed4e);
-  color: #000;
+  color: #1f2330;
   border: none;
-  border-radius: 8px;
+  border-radius: 28px;
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 600;
@@ -1117,7 +1117,7 @@ body::before{
 
 .theme-light .premium-locked-message {
   background: rgba(255, 215, 0, 0.12);
-  border-color: rgba(255, 215, 0, 0.35);
+  border-color: rgb(255, 215, 0);
 }
 
 .theme-light .premium-locked-message p {

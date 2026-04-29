@@ -2670,7 +2670,7 @@
             lockedMsg.innerHTML = `
               <p>🔒 Для разблокировки премиум-функций оформите подписку в боте через /subscribe</p>
               <button class="premium-buy-btn" onclick="openBotSubscribe()" type="button">
-                💎 Купить премиум
+                👑 Купить премиум
               </button>
             `;
             section.appendChild(lockedMsg);
