@@ -34,6 +34,7 @@
     postLink: "",
     mediaCache: {}, // Кеш для data URLs изображений по message_id
     premiumUsers: {}, // Кеш премиум-статусов других пользователей {user_id: boolean}
+    settingsLoadedOnce: false, // КРИТИЧНО: Флаг что настройки уже загружены один раз
   };
 
   const el = {
@@ -801,6 +802,13 @@
   }
 
   async function loadVisualSettings() {
+    // КРИТИЧНО: Загружаем настройки только один раз при инициализации
+    // Это предотвращает перезапись настроек после того как пользователь их изменил
+    if (state.settingsLoadedOnce) {
+      console.log("[DEBUG] loadVisualSettings: Settings already loaded once, skipping reload to prevent overwrite");
+      return;
+    }
+    
     console.log("[DEBUG] loadVisualSettings: Starting to load settings...");
     
     // Сначала пробуем загрузить с сервера
@@ -860,6 +868,9 @@
           applyPremiumColors();
           console.log("[DEBUG] Premium colors applied after delay");
         }, 100);
+        
+        // КРИТИЧНО: Устанавливаем флаг что настройки загружены
+        state.settingsLoadedOnce = true;
         
         console.log("[DEBUG] loadVisualSettings: Successfully loaded from server");
         return; // Успешно загрузили с сервера
@@ -926,6 +937,11 @@
       applyPremiumColors();
       console.log("[DEBUG] Premium colors applied after delay (localStorage)");
     }, 100);
+    
+    // КРИТИЧНО: Устанавливаем флаг что настройки загружены
+    state.settingsLoadedOnce = true;
+    
+    console.log("[DEBUG] loadVisualSettings: Loaded from localStorage");
   }
 
   // Debounced версия saveVisualSettings для оптимизации
