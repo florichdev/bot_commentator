@@ -359,7 +359,7 @@ body::before{
   margin-bottom: 4px;
 }
 .bubble__author{
-  font-size:12px;
+  font-size:14px;
   font-weight:700;
   opacity:0.95;
 }
@@ -1802,7 +1802,6 @@ body::before{
   font-size: 15px;
   margin-left: 4px;
   filter: drop-shadow(0 0 4px var(--premium-glow));
-  animation: premiumBadgePulse 2s ease-in-out infinite;
 }
 
 .premium-badge::before {
@@ -1838,7 +1837,7 @@ body::before{
 
 .premium-reactions-hint__icon {
   font-size: 14px;
-  animation: premiumBadgePulse 2s ease-in-out infinite;
+  
 }
 
 .premium-reactions-hint__text {
@@ -2143,7 +2142,7 @@ body::before{
 .premium-notification__icon {
   font-size: 24px;
   flex-shrink: 0;
-  animation: premiumBadgePulse 2s ease-in-out infinite;
+  
 }
 
 .premium-notification__text {
@@ -2195,7 +2194,7 @@ body::before{
   display: inline-block;
   margin-left: 4px;
   font-size: 15px;
-  animation: premiumBadgePulse 2s ease-in-out infinite;
+  
   position: relative;
 }
 

@@ -2281,29 +2281,32 @@
       
       // Добавляем значок премиум рядом с ником (в конце)
       if (isAuthorPremium) {
-        // Используем premium_emoji из данных комментария (если есть), иначе дефолтный
-        const authorPremiumEmoji = item.premium_emoji || '👑';
+        // ВАЖНО: Берем эмодзи из ТЕКУЩИХ настроек пользователя (автора комментария)
+        // Если это мой комментарий - берем из state, если чужой - из сохраненных данных
+        const isMyComment = isMine;
+        const authorPremiumEmoji = isMyComment ? state.premiumEmoji : (item.premium_emoji || '👑');
+        const authorEmojiMode = isMyComment ? state.premiumEmojiMode : (item.premium_emoji_mode || 'emoji');
+        const authorEmojiColor = isMyComment ? state.premiumEmojiColor : (item.premium_emoji_color || '#ffd700');
         
         let badgeHtml = '';
         
-        // ВАЖНО: Режим "none" применяется ТОЛЬКО к своим комментариям
-        // Чужие эмодзи всегда видны
-        const shouldHideBadge = item.premium_emoji_mode === 'none';
-        
-        if (shouldHideBadge) {
+        if (authorEmojiMode === 'none') {
           // Режим "Без значка" - не показываем эмодзи
           badgeHtml = '';
-        } else if (item.premium_emoji_mode === 'color' && item.premium_emoji_color) {
-          // Режим цветной заливки - показываем эмодзи с цветным bloom эффектом
+        } else if (authorEmojiMode === 'color' && authorEmojiColor) {
+          // Режим цветной заливки - показываем эмодзи с уменьшенным bloom эффектом
           badgeHtml = `<span class="premium-badge premium-badge--bloom" style="
-            --bloom-color: ${item.premium_emoji_color}; 
-            text-shadow: 0 0 8px ${item.premium_emoji_color}, 0 0 16px ${item.premium_emoji_color}40, 0 0 24px ${item.premium_emoji_color}20;
-            filter: drop-shadow(0 0 4px ${item.premium_emoji_color}) drop-shadow(0 0 8px ${item.premium_emoji_color}60);
+            --bloom-color: ${authorEmojiColor}; 
+            text-shadow: 0 0 4px ${authorEmojiColor}, 0 0 8px ${authorEmojiColor}30;
+            filter: drop-shadow(0 0 2px ${authorEmojiColor}) drop-shadow(0 0 4px ${authorEmojiColor}40);
             margin-left: 4px;
+            display: inline-flex;
+            align-items: center;
+            vertical-align: middle;
           ">${authorPremiumEmoji}</span>`;
         } else {
           // Режим обычного эмодзи - показываем эмодзи без эффектов
-          badgeHtml = `<span class="premium-badge" style="margin-left: 4px;">${authorPremiumEmoji}</span>`;
+          badgeHtml = `<span class="premium-badge" style="margin-left: 4px; display: inline-flex; align-items: center; vertical-align: middle;">${authorPremiumEmoji}</span>`;
         }
         
         authorEl.innerHTML = `${item.authorName || "Пользователь"}${badgeHtml}`;
@@ -3409,7 +3412,8 @@
         
         applyPremiumColors();
         saveVisualSettings();
-        // НЕ вызываем render() - эмодзи применяется только к новым комментариям
+        // Перерендериваем комментарии чтобы обновить эмодзи на СВОИХ комментариях
+        render();
       });
     });
     
@@ -3456,8 +3460,8 @@
         item.classList.toggle("active", item.dataset.premiumEmoji === state.premiumEmoji);
       });
       
-      // НЕ перерендериваем комментарии - эмодзи применяется только к новым комментариям
-      // render(); // УДАЛЕНО: это вызывало дублирование эмодзи у всех комментариев
+      // Перерендериваем комментарии чтобы обновить эмодзи на СВОИХ комментариях
+      render();
     });
     
     el.openBotBtn?.addEventListener("click", () => {
