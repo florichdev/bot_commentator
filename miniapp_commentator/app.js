@@ -918,6 +918,8 @@
         premiumEmojiColor: state.premiumEmojiColor
       };
       
+      console.log("[DEBUG] Saving settings to server:", JSON.stringify(settings, null, 2));
+      
       const success = await apiSaveUserSettings(settings);
       if (success) {
         console.log("[DEBUG] Settings saved to server");
