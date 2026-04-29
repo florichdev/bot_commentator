@@ -755,6 +755,8 @@
     console.log("[DEBUG] applyUserPremiumStyles called for comment:", comment.id, "author:", comment.authorName);
     console.log("[DEBUG] Comment premium settings:", {
       premium_color_scheme: comment.premium_color_scheme,
+      premium_color_mode: comment.premium_color_mode,
+      premium_custom_colors: comment.premium_custom_colors,
       premium_emoji: comment.premium_emoji,
       premium_emoji_mode: comment.premium_emoji_mode,
       premium_emoji_color: comment.premium_emoji_color
@@ -763,7 +765,7 @@
     // Определяем цвета автора комментария
     let colors;
     
-    if (comment.premium_custom_colors) {
+    if (comment.premium_color_mode === "custom" && comment.premium_custom_colors) {
       // Используем кастомные цвета автора
       colors = comment.premium_custom_colors;
       console.log("[DEBUG] Using custom colors:", colors);
@@ -1520,17 +1522,18 @@
           
           // Мерджим комментарии: обновляем реакции с сервера и сохраняем selected
           const mergedComments = serverComments.map(serverComment => {
-            const localComment = state.comments.find(c => c.id === serverComment.id);
+            const normalizedServerComment = normalizeComment(serverComment); // КРИТИЧНО: Нормализуем серверный комментарий
+            const localComment = state.comments.find(c => c.id === normalizedServerComment.id);
             if (localComment) {
-              // Используем серверные реакции (они актуальнее) и сохраняем локальный selected
+              // Используем серверные данные (они актуальнее) и сохраняем локальный selected
               return {
-                ...serverComment,
-                reactions: serverComment.reactions || {},
-                reactedBy: serverComment.reactedBy || {},
+                ...normalizedServerComment,
+                reactions: normalizedServerComment.reactions || {},
+                reactedBy: normalizedServerComment.reactedBy || {},
                 selected: localComment.selected || false // Сохраняем состояние выбора
               };
             }
-            return serverComment;
+            return normalizedServerComment;
           });
           
           // Обновляем состояние только если есть изменения
@@ -2099,10 +2102,18 @@
       if (isAuthorPremium) {
         // Используем premium_emoji из данных комментария (если есть), иначе дефолтный
         const authorPremiumEmoji = item.premium_emoji || '👑';
-        const badgeStyle = item.premium_emoji_mode === 'color' && item.premium_emoji_color 
-          ? `background-color: ${item.premium_emoji_color}; --premium-emoji-color: ${item.premium_emoji_color};`
-          : `--premium-emoji: '${authorPremiumEmoji}';`;
-        authorEl.innerHTML = `${item.authorName || "Пользователь"} <span class="premium-badge" style="${badgeStyle}">${item.premium_emoji_mode === 'emoji' ? authorPremiumEmoji : ''}</span>`;
+        
+        let badgeHtml = '';
+        
+        if (item.premium_emoji_mode === 'color' && item.premium_emoji_color) {
+          // Режим цветной заливки - показываем цветной квадрат
+          badgeHtml = `<span class="premium-badge" style="background-color: ${item.premium_emoji_color}; width: 16px; height: 16px; border-radius: 3px; display: inline-block; margin-left: 4px;"></span>`;
+        } else {
+          // Режим эмодзи - показываем эмодзи
+          badgeHtml = `<span class="premium-badge" style="margin-left: 4px;">${authorPremiumEmoji}</span>`;
+        }
+        
+        authorEl.innerHTML = `${item.authorName || "Пользователь"}${badgeHtml}`;
         // Добавляем класс для подсветки комментария
         node.classList.add("msg--premium");
         
