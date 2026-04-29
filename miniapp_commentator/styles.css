@@ -1804,9 +1804,7 @@ body::before{
   filter: drop-shadow(0 0 4px var(--premium-glow));
 }
 
-.premium-badge::before {
-  content: var(--premium-emoji);
-}
+
 
 /* Цвет имени премиум-пользователя */
 .msg--premium .bubble__author {
@@ -2198,14 +2196,7 @@ body::before{
   position: relative;
 }
 
-.premium-badge--color::before {
-  content: "👑";
-  background: linear-gradient(135deg, var(--premium-emoji-color, #ffd700) 0%, var(--premium-emoji-color, #ffd700) 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: brightness(1.2) saturate(1.3) drop-shadow(0 0 4px var(--premium-emoji-color, #ffd700));
-}
+
 
 /* Переключатель режимов (готовые/кастомные) */
 .premium-mode-toggle {
