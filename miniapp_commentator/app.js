@@ -778,6 +778,8 @@
   }
 
   async function loadVisualSettings() {
+    console.log("[DEBUG] loadVisualSettings: Starting to load settings...");
+    
     // Сначала пробуем загрузить с сервера
     if (state.apiBase && isAuthorizedUser()) {
       const serverSettings = await apiLoadUserSettings();
@@ -787,35 +789,46 @@
         // Применяем настройки с сервера
         if (serverSettings.themeMode && ["light", "dark", "system"].includes(serverSettings.themeMode)) {
           state.themeMode = serverSettings.themeMode;
+          console.log("[DEBUG] Applied themeMode:", state.themeMode);
         }
         if (serverSettings.bgScheme && BG_SCHEMES.some((item) => item.id === serverSettings.bgScheme)) {
           state.bgScheme = serverSettings.bgScheme;
+          console.log("[DEBUG] Applied bgScheme:", state.bgScheme);
         }
         if (serverSettings.bgMode && ["presets", "custom"].includes(serverSettings.bgMode)) {
           state.bgMode = serverSettings.bgMode;
+          console.log("[DEBUG] Applied bgMode:", state.bgMode);
         }
         if (serverSettings.customGradient) {
           state.customGradient = serverSettings.customGradient;
+          console.log("[DEBUG] Applied customGradient:", state.customGradient);
         }
         if (serverSettings.premiumColorScheme && PREMIUM_COLOR_SCHEMES.some((item) => item.id === serverSettings.premiumColorScheme)) {
           state.premiumColorScheme = serverSettings.premiumColorScheme;
+          console.log("[DEBUG] Applied premiumColorScheme:", state.premiumColorScheme);
         }
         if (serverSettings.premiumEmoji && PREMIUM_EMOJIS.includes(serverSettings.premiumEmoji)) {
           state.premiumEmoji = serverSettings.premiumEmoji;
+          console.log("[DEBUG] Applied premiumEmoji:", state.premiumEmoji);
         }
         if (serverSettings.premiumEmojiMode && ["emoji", "color"].includes(serverSettings.premiumEmojiMode)) {
           state.premiumEmojiMode = serverSettings.premiumEmojiMode;
+          console.log("[DEBUG] Applied premiumEmojiMode:", state.premiumEmojiMode);
         }
         if (serverSettings.premiumEmojiColor) {
           state.premiumEmojiColor = serverSettings.premiumEmojiColor;
+          console.log("[DEBUG] Applied premiumEmojiColor:", state.premiumEmojiColor);
         }
         if (serverSettings.premiumColorMode && ["presets", "custom"].includes(serverSettings.premiumColorMode)) {
           state.premiumColorMode = serverSettings.premiumColorMode;
+          console.log("[DEBUG] Applied premiumColorMode:", state.premiumColorMode);
         }
         if (serverSettings.premiumCustomColors) {
           state.premiumCustomColors = serverSettings.premiumCustomColors;
+          console.log("[DEBUG] Applied premiumCustomColors:", state.premiumCustomColors);
         }
         
+        console.log("[DEBUG] loadVisualSettings: Successfully loaded from server");
         return; // Успешно загрузили с сервера
       }
     }
@@ -2864,17 +2877,114 @@
       const hex = hslToHex(h, s, l);
       
       if (target === 'emoji') {
-        document.getElementById('valueHEmoji').textContent = h + '°';
-        document.getElementById('valueSEmoji').textContent = s + '%';
-        document.getElementById('valueLEmoji').textContent = l + '%';
-        document.getElementById('hexValueEmoji').textContent = hex;
-        document.getElementById('previewEmojiColor').style.background = hex;
-        document.getElementById('emojiColorPreview').style.background = hex;
+        const valueHEmoji = document.getElementById('valueHEmoji');
+        const valueSEmoji = document.getElementById('valueSEmoji');
+        const valueLEmoji = document.getElementById('valueLEmoji');
+        const hexValueEmoji = document.getElementById('hexValueEmoji');
+        const previewEmojiColor = document.getElementById('previewEmojiColor');
+        const emojiColorPreview = document.getElementById('emojiColorPreview');
+        
+        if (valueHEmoji) valueHEmoji.textContent = h + '°';
+        if (valueSEmoji) valueSEmoji.textContent = s + '%';
+        if (valueLEmoji) valueLEmoji.textContent = l + '%';
+        if (hexValueEmoji) hexValueEmoji.textContent = hex;
+        if (previewEmojiColor) previewEmojiColor.style.background = hex;
+        if (emojiColorPreview) emojiColorPreview.style.background = hex;
         
         state.premiumEmojiColor = hex;
         state.premiumEmojiMode = 'color';
         
         // Применяем только цвет эмодзи
+        document.documentElement.style.setProperty("--premium-emoji", `""`);
+        document.documentElement.style.setProperty("--premium-emoji-color", hex);
+        
+        saveVisualSettings();
+        render();
+      } else if (target === 'gradient1' || target === 'gradient2') {
+        const valueH = document.getElementById('valueH' + target.charAt(target.length - 1) === '1' ? 'Gradient1' : 'Gradient2');
+        const valueS = document.getElementById('valueS' + target.charAt(target.length - 1) === '1' ? 'Gradient1' : 'Gradient2');
+        const valueL = document.getElementById('valueL' + target.charAt(target.length - 1) === '1' ? 'Gradient1' : 'Gradient2');
+        const hexValue = document.getElementById('hexValue' + target.charAt(target.length - 1) === '1' ? 'Gradient1' : 'Gradient2');
+        const preview = document.getElementById('preview' + target.charAt(0).toUpperCase() + target.slice(1));
+        
+        // Правильные ID элементов
+        const targetNum = target === 'gradient1' ? 'Gradient1' : 'Gradient2';
+        const valueHEl = document.getElementById('valueH' + targetNum);
+        const valueSEl = document.getElementById('valueS' + targetNum);
+        const valueLEl = document.getElementById('valueL' + targetNum);
+        const hexValueEl = document.getElementById('hexValue' + targetNum);
+        const previewEl = document.getElementById('preview' + targetNum);
+        
+        if (valueHEl) valueHEl.textContent = h + '°';
+        if (valueSEl) valueSEl.textContent = s + '%';
+        if (valueLEl) valueLEl.textContent = l + '%';
+        if (hexValueEl) hexValueEl.textContent = hex;
+        if (previewEl) previewEl.style.background = hex;
+        
+        state.customGradient = state.customGradient || {};
+        state.customGradient[target] = { h, s, l, hex };
+        
+        // Обновляем предпросмотр градиента
+        const color1 = state.customGradient.gradient1?.hex || '#0f5739';
+        const color2 = state.customGradient.gradient2?.hex || '#52c9eb';
+        const gradient = `linear-gradient(90deg, ${color1}, ${color2})`;
+        const gradientPreview = document.getElementById('gradientPreview');
+        if (gradientPreview) {
+          gradientPreview.style.background = gradient;
+        }
+        
+        // Применяем градиент
+        state.bgMode = 'custom';
+        applyBackgroundScheme();
+        saveVisualSettings();
+      } else {
+        const targetNum = target;
+        const valueHEl = document.getElementById('valueH' + targetNum);
+        const valueSEl = document.getElementById('valueS' + targetNum);
+        const valueLEl = document.getElementById('valueL' + targetNum);
+        const hexValueEl = document.getElementById('hexValue' + targetNum);
+        
+        if (valueHEl) valueHEl.textContent = h + '°';
+        if (valueSEl) valueSEl.textContent = s + '%';
+        if (valueLEl) valueLEl.textContent = l + '%';
+        if (hexValueEl) hexValueEl.textContent = hex;
+        
+        const rgba1 = hexToRgba(hex, 0.21);
+        const rgba2 = hexToRgba(hex, 0.12);
+        const rgba3 = hexToRgba(hex, 0.08);
+        const rgbaBorder = hexToRgba(hex, 0.45);
+        const rgbaGlow = hexToRgba(hex, 0.2);
+        const rgbaName = hexToRgba(hex, 0.95);
+        
+        if (targetNum === '1') {
+          const previewColor1 = document.getElementById('previewColor1');
+          if (previewColor1) previewColor1.style.background = rgba1;
+          document.documentElement.style.setProperty("--premium-color-1", rgba1);
+        } else if (targetNum === '2') {
+          const previewColor2 = document.getElementById('previewColor2');
+          if (previewColor2) previewColor2.style.background = rgba2;
+          document.documentElement.style.setProperty("--premium-color-2", rgba2);
+        }
+        
+        // Автоматически обновляем остальные параметры
+        document.documentElement.style.setProperty("--premium-color-3", rgba3);
+        document.documentElement.style.setProperty("--premium-border", rgbaBorder);
+        document.documentElement.style.setProperty("--premium-glow", rgbaGlow);
+        document.documentElement.style.setProperty("--premium-name-color", rgbaName);
+        
+        state.premiumCustomColors = state.premiumCustomColors || {};
+        state.premiumCustomColors['color' + targetNum] = { h, s, l, hex };
+        state.premiumCustomColors.color1 = rgba1;
+        state.premiumCustomColors.color2 = rgba2;
+        state.premiumCustomColors.color3 = rgba3;
+        state.premiumCustomColors.border = rgbaBorder;
+        state.premiumCustomColors.glow = rgbaGlow;
+        state.premiumCustomColors.nameColor = rgbaName;
+        
+        saveVisualSettings();
+        render();
+      }
+    }
         document.documentElement.style.setProperty("--premium-emoji", `""`);
         document.documentElement.style.setProperty("--premium-emoji-color", hex);
         
