@@ -901,6 +901,9 @@
         // КРИТИЧНО: Устанавливаем флаг что настройки загружены
         state.settingsLoadedOnce = true;
         
+        // Инициализируем хеш настроек для автосинхронизации
+        lastSettingsHash = getSettingsHash(serverSettings);
+        
         console.log("[DEBUG] loadVisualSettings: Successfully loaded from server");
         return; // Успешно загрузили с сервера
       }
@@ -1023,6 +1026,148 @@
 
   function saveVisualSettings() {
     debouncedSaveVisualSettings();
+  }
+
+  // Автосинхронизация настроек с сервера
+  let settingsSyncInterval = null;
+  let lastSettingsHash = null;
+
+  function getSettingsHash(settings) {
+    if (!settings) return null;
+    // Создаем хеш из ключевых настроек для быстрого сравнения
+    const key = JSON.stringify({
+      themeMode: settings.themeMode,
+      bgScheme: settings.bgScheme,
+      bgMode: settings.bgMode,
+      premiumColorScheme: settings.premiumColorScheme,
+      premiumColorMode: settings.premiumColorMode,
+      premiumEmoji: settings.premiumEmoji,
+      premiumEmojiMode: settings.premiumEmojiMode,
+      premiumEmojiColor: settings.premiumEmojiColor
+    });
+    return key;
+  }
+
+  async function syncSettingsFromServer() {
+    if (!state.apiBase || !isAuthorizedUser()) return;
+    
+    try {
+      const serverSettings = await apiLoadUserSettings();
+      if (!serverSettings) return;
+      
+      const newHash = getSettingsHash(serverSettings);
+      
+      // Проверяем, изменились ли настройки
+      if (lastSettingsHash === newHash) {
+        return; // Настройки не изменились
+      }
+      
+      console.log("[DEBUG] Settings changed on server, syncing...");
+      lastSettingsHash = newHash;
+      
+      // Применяем настройки с сервера
+      let hasChanges = false;
+      
+      if (serverSettings.themeMode && ["light", "dark", "system"].includes(serverSettings.themeMode) && state.themeMode !== serverSettings.themeMode) {
+        state.themeMode = serverSettings.themeMode;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.bgScheme && BG_SCHEMES.some((item) => item.id === serverSettings.bgScheme) && state.bgScheme !== serverSettings.bgScheme) {
+        state.bgScheme = serverSettings.bgScheme;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.bgMode && ["presets", "custom"].includes(serverSettings.bgMode) && state.bgMode !== serverSettings.bgMode) {
+        state.bgMode = serverSettings.bgMode;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.customGradient && JSON.stringify(state.customGradient) !== JSON.stringify(serverSettings.customGradient)) {
+        state.customGradient = serverSettings.customGradient;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.premiumColorScheme && PREMIUM_COLOR_SCHEMES.some((item) => item.id === serverSettings.premiumColorScheme) && state.premiumColorScheme !== serverSettings.premiumColorScheme) {
+        state.premiumColorScheme = serverSettings.premiumColorScheme;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.premiumEmoji && PREMIUM_EMOJIS.includes(serverSettings.premiumEmoji) && state.premiumEmoji !== serverSettings.premiumEmoji) {
+        state.premiumEmoji = serverSettings.premiumEmoji;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.premiumEmojiMode && ["emoji", "color", "none"].includes(serverSettings.premiumEmojiMode) && state.premiumEmojiMode !== serverSettings.premiumEmojiMode) {
+        state.premiumEmojiMode = serverSettings.premiumEmojiMode;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.premiumEmojiColor && state.premiumEmojiColor !== serverSettings.premiumEmojiColor) {
+        state.premiumEmojiColor = serverSettings.premiumEmojiColor;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.premiumColorMode && ["presets", "custom"].includes(serverSettings.premiumColorMode) && state.premiumColorMode !== serverSettings.premiumColorMode) {
+        state.premiumColorMode = serverSettings.premiumColorMode;
+        hasChanges = true;
+      }
+      
+      if (serverSettings.premiumCustomColors && JSON.stringify(state.premiumCustomColors) !== JSON.stringify(serverSettings.premiumCustomColors)) {
+        state.premiumCustomColors = serverSettings.premiumCustomColors;
+        hasChanges = true;
+      }
+      
+      // Если были изменения, применяем их к интерфейсу
+      if (hasChanges) {
+        console.log("[DEBUG] Applying synced settings to UI");
+        applyTheme();
+        applyBackgroundScheme();
+        applyPremiumColors();
+        
+        // Сохраняем в localStorage
+        localStorage.setItem(THEME_KEY, state.themeMode);
+        localStorage.setItem(BG_SCHEME_KEY, state.bgScheme);
+        localStorage.setItem(BG_MODE_KEY, state.bgMode);
+        if (state.customGradient) {
+          localStorage.setItem(CUSTOM_GRADIENT_KEY, JSON.stringify(state.customGradient));
+        }
+        localStorage.setItem(PREMIUM_COLOR_KEY, state.premiumColorScheme);
+        localStorage.setItem(PREMIUM_EMOJI_KEY, state.premiumEmoji);
+        localStorage.setItem(PREMIUM_EMOJI_MODE_KEY, state.premiumEmojiMode);
+        localStorage.setItem(PREMIUM_EMOJI_COLOR_KEY, state.premiumEmojiColor);
+        localStorage.setItem(PREMIUM_COLOR_MODE_KEY, state.premiumColorMode);
+        if (state.premiumCustomColors) {
+          localStorage.setItem(PREMIUM_CUSTOM_COLORS_KEY, JSON.stringify(state.premiumCustomColors));
+        }
+        
+        console.log("[DEBUG] Settings synced successfully");
+      }
+    } catch (error) {
+      console.error("[DEBUG] Error syncing settings:", error);
+    }
+  }
+
+  function startSettingsSync() {
+    // Останавливаем предыдущий интервал если есть
+    if (settingsSyncInterval) {
+      clearInterval(settingsSyncInterval);
+    }
+    
+    // Запускаем периодическую проверку каждые 10 секунд
+    settingsSyncInterval = setInterval(() => {
+      syncSettingsFromServer();
+    }, 10000); // 10 секунд
+    
+    console.log("[DEBUG] Settings auto-sync started (every 10 seconds)");
+  }
+
+  function stopSettingsSync() {
+    if (settingsSyncInterval) {
+      clearInterval(settingsSyncInterval);
+      settingsSyncInterval = null;
+      console.log("[DEBUG] Settings auto-sync stopped");
+    }
   }
 
   function isAuthorizedUser() {
@@ -2141,8 +2286,12 @@
         
         let badgeHtml = '';
         
-        if (item.premium_emoji_mode === 'none') {
-          // Режим отключен - не показываем эмодзи вообще
+        // ВАЖНО: Режим "none" применяется ТОЛЬКО к своим комментариям
+        // Чужие эмодзи всегда видны
+        const shouldHideBadge = item.premium_emoji_mode === 'none';
+        
+        if (shouldHideBadge) {
+          // Режим "Без значка" - не показываем эмодзи
           badgeHtml = '';
         } else if (item.premium_emoji_mode === 'color' && item.premium_emoji_color) {
           // Режим цветной заливки - показываем эмодзи с цветным bloom эффектом
@@ -3465,14 +3614,19 @@
     // Останавливаем real-time обновления при закрытии страницы
     window.addEventListener("beforeunload", () => {
       stopRealTimeUpdates();
+      stopSettingsSync();
     });
     
     // Останавливаем обновления при потере фокуса (экономия ресурсов)
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         stopRealTimeUpdates();
+        stopSettingsSync();
       } else {
         startRealTimeUpdates();
+        if (state.apiBase && isAuthorizedUser()) {
+          startSettingsSync();
+        }
       }
     });
     el.contextMenu?.addEventListener("click", async (e) => {
@@ -3692,6 +3846,12 @@
     applyTheme();
     applyBackgroundScheme();
     applyPremiumColors();
+    
+    // Запускаем автосинхронизацию настроек
+    if (state.apiBase && isAuthorizedUser()) {
+      startSettingsSync();
+      console.log("[DEBUG] Settings auto-sync enabled");
+    }
     
     // Дополнительная защита: очищаем старые комментарии если нет валидного postId
     if (!state.postId || state.postId === "default-post") {
