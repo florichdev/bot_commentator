@@ -1449,7 +1449,9 @@
       return;
     }
     
-    console.log("[DEBUG] saveEditedComment: editing comment ID:", state.editCommentId);
+    // КРИТИЧНО: Сохраняем ID в локальную переменную ДО вызова closeEditModal()
+    const commentIdToSave = state.editCommentId;
+    console.log("[DEBUG] saveEditedComment: editing comment ID:", commentIdToSave);
     
     // Обновляем локально
     comment.text = newText;
@@ -1460,9 +1462,9 @@
     render();
     closeEditModal();
     
-    // Отправляем на сервер
+    // Отправляем на сервер (используем сохраненный ID)
     try {
-      const resp = await fetch(`${state.apiBase}/api/comments/${state.editCommentId}`, {
+      const resp = await fetch(`${state.apiBase}/api/comments/${commentIdToSave}`, {
         method: "PUT",
         headers: apiHeaders(),
         body: JSON.stringify({

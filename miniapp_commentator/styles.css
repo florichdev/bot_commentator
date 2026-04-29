@@ -362,6 +362,9 @@ body::before{
   font-size:14px;
   font-weight:700;
   opacity:0.95;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
 }
 .bubble__text{
   font-size: 15px;
@@ -1809,7 +1812,7 @@ body::before{
 /* Цвет имени премиум-пользователя */
 .msg--premium .bubble__author {
   color: var(--premium-name-color);
-  text-shadow: 0 0 8px var(--premium-glow);
+  text-shadow: 0 0 4px var(--premium-glow);
 }
 
 @keyframes premiumBadgePulse {
