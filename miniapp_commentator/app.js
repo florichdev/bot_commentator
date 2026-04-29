@@ -871,7 +871,7 @@
           state.premiumEmoji = serverSettings.premiumEmoji;
           console.log("[DEBUG] Applied premiumEmoji:", state.premiumEmoji);
         }
-        if (serverSettings.premiumEmojiMode && ["emoji", "color"].includes(serverSettings.premiumEmojiMode)) {
+        if (serverSettings.premiumEmojiMode && ["emoji", "color", "none"].includes(serverSettings.premiumEmojiMode)) {
           state.premiumEmojiMode = serverSettings.premiumEmojiMode;
           console.log("[DEBUG] Applied premiumEmojiMode:", state.premiumEmojiMode);
         }
@@ -937,7 +937,7 @@
       state.premiumEmoji = storedPremiumEmoji;
     }
     const storedPremiumEmojiMode = localStorage.getItem(PREMIUM_EMOJI_MODE_KEY);
-    if (storedPremiumEmojiMode && ["emoji", "color"].includes(storedPremiumEmojiMode)) {
+    if (storedPremiumEmojiMode && ["emoji", "color", "none"].includes(storedPremiumEmojiMode)) {
       state.premiumEmojiMode = storedPremiumEmojiMode;
     }
     const storedPremiumEmojiColor = localStorage.getItem(PREMIUM_EMOJI_COLOR_KEY);
@@ -1047,6 +1047,12 @@
 
   function normalizeComment(item) {
     const normalized = { ...item };
+    
+    // КРИТИЧНО: Убеждаемся что id всегда строка
+    if (normalized.id !== undefined && normalized.id !== null) {
+      normalized.id = String(normalized.id);
+    }
+    
     normalized.reactions = normalized.reactions && typeof normalized.reactions === "object" ? normalized.reactions : {};
     normalized.reactedBy = normalized.reactedBy && typeof normalized.reactedBy === "object" ? normalized.reactedBy : {};
     normalized.replyTo = normalized.replyTo || null;
@@ -1171,21 +1177,26 @@
   }
 
   function openEditModal(commentId) {
-    console.log("[DEBUG] openEditModal called with commentId:", commentId);
+    console.log("[DEBUG] openEditModal called with commentId:", commentId, "type:", typeof commentId);
     
     if (!commentId) {
       console.error("[DEBUG] openEditModal: commentId is null or undefined");
+      alert("❌ Ошибка: не удалось определить комментарий для редактирования");
       return;
     }
     
     const comment = findCommentById(commentId);
     if (!comment) {
       console.error("[DEBUG] openEditModal: comment not found for ID:", commentId);
+      alert("❌ Ошибка: комментарий не найден");
       return;
     }
     
     // Проверяем что это свой комментарий
-    if (comment.authorId !== state.user.id) return;
+    if (comment.authorId !== state.user.id) {
+      console.error("[DEBUG] openEditModal: not author's comment");
+      return;
+    }
     
     // Проверяем что комментарий не старше 24 часов
     const commentAge = Date.now() - new Date(comment.createdAt).getTime();
@@ -1195,13 +1206,14 @@
       return;
     }
     
-    state.editCommentId = commentId;
+    // КРИТИЧНО: Сохраняем ID комментария перед открытием модального окна
+    state.editCommentId = String(commentId);
     el.editTextarea.value = comment.text;
     el.editCharCounter.textContent = comment.text.length;
     el.editModal.hidden = false;
     el.editTextarea.focus();
     
-    console.log("[DEBUG] openEditModal: set editCommentId to:", state.editCommentId);
+    console.log("[DEBUG] openEditModal: successfully set editCommentId to:", state.editCommentId);
   }
 
   function closeEditModal() {
@@ -1779,6 +1791,14 @@
         authorId: x.author_id,
         authorName: x.author_name,
         createdAt: x.created_at,
+        photo_url: x.author_photo_url,
+        // КРИТИЧНО: Возвращаем премиум-поля из ответа сервера
+        premium_color_scheme: x.premium_color_scheme,
+        premium_color_mode: x.premium_color_mode,
+        premium_custom_colors: x.premium_custom_colors,
+        premium_emoji: x.premium_emoji,
+        premium_emoji_mode: x.premium_emoji_mode,
+        premium_emoji_color: x.premium_emoji_color,
       };
     } catch (error) {
       if (error.message && error.message.startsWith("USER_BANNED:")) {
@@ -3219,18 +3239,28 @@
         // Показываем/скрываем соответствующие панели
         const emojiPalette = document.getElementById('premiumEmojiPalette');
         const colorPicker = document.getElementById('premiumEmojiColorPicker');
+        const emojiPreview = document.getElementById('premiumEmojiPreview');
         
         if (mode === 'emoji') {
-          emojiPalette.hidden = false;
-          colorPicker.hidden = true;
-        } else {
-          emojiPalette.hidden = true;
-          colorPicker.hidden = false;
+          // Режим эмодзи - показываем палитру
+          if (emojiPalette) emojiPalette.hidden = false;
+          if (colorPicker) colorPicker.hidden = true;
+          if (emojiPreview) emojiPreview.hidden = false;
+        } else if (mode === 'color') {
+          // Режим цветной заливки - показываем color picker
+          if (emojiPalette) emojiPalette.hidden = true;
+          if (colorPicker) colorPicker.hidden = false;
+          if (emojiPreview) emojiPreview.hidden = false;
+        } else if (mode === 'none') {
+          // Режим "Без значка" - скрываем все
+          if (emojiPalette) emojiPalette.hidden = true;
+          if (colorPicker) colorPicker.hidden = true;
+          if (emojiPreview) emojiPreview.hidden = true;
         }
         
         applyPremiumColors();
         saveVisualSettings();
-        render();
+        // НЕ вызываем render() - эмодзи применяется только к новым комментариям
       });
     });
     
@@ -3277,8 +3307,8 @@
         item.classList.toggle("active", item.dataset.premiumEmoji === state.premiumEmoji);
       });
       
-      // Перерендериваем комментарии чтобы применить новый эмодзи
-      render();
+      // НЕ перерендериваем комментарии - эмодзи применяется только к новым комментариям
+      // render(); // УДАЛЕНО: это вызывало дублирование эмодзи у всех комментариев
     });
     
     el.openBotBtn?.addEventListener("click", () => {
