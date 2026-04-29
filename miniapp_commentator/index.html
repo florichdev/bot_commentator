@@ -389,16 +389,33 @@
         <div class="deleteModal__title">Редактировать комментарий</div>
       </div>
       <div class="deleteModal__body" style="padding: 20px;">
+        <div class="formatting-toolbar">
+          <button type="button" class="format-btn" data-format="bold" title="Жирный">
+            <strong>B</strong>
+          </button>
+          <button type="button" class="format-btn" data-format="italic" title="Курсив">
+            <em>I</em>
+          </button>
+          <button type="button" class="format-btn" data-format="strikethrough" title="Зачеркнутый">
+            <s>S</s>
+          </button>
+          <button type="button" class="format-btn" data-format="code" title="Код">
+            <code>&lt;/&gt;</code>
+          </button>
+          <button type="button" class="format-btn" data-format="link" title="Ссылка">
+            🔗
+          </button>
+        </div>
         <textarea id="editTextarea" class="editModal__textarea" placeholder="Введите текст комментария..." maxlength="4000"></textarea>
         <div class="editModal__hint">Поддерживается Markdown: **жирный**, *курсив*, [ссылка](url), `код`</div>
         <div class="editModal__counter"><span id="editCharCounter">0</span> / 4000</div>
       </div>
       <div class="deleteModal__actions">
-        <button id="editCancelBtn" class="deleteModal__btn deleteModal__btn--secondary" type="button">
-          Отмена
-        </button>
         <button id="editSaveBtn" class="deleteModal__btn deleteModal__btn--primary" type="button">
           Сохранить
+        </button>
+        <button id="editCancelBtn" class="deleteModal__btn deleteModal__btn--secondary" type="button">
+          Отмена
         </button>
       </div>
       <button id="editCloseBtn" class="deleteModal__cancel" type="button" aria-label="Закрыть">✕</button>

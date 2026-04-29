@@ -690,6 +690,54 @@
     }
   }
 
+  /**
+   * Применяет индивидуальные премиум стили к элементу комментария
+   * @param {Object} comment - Объект комментария с настройками автора
+   * @param {HTMLElement} element - DOM элемент комментария
+   */
+  function applyUserPremiumStyles(comment, element) {
+    if (!comment || !element) return;
+    
+    // Определяем цвета автора комментария
+    let colors;
+    
+    if (comment.premium_custom_colors) {
+      // Используем кастомные цвета автора
+      colors = comment.premium_custom_colors;
+    } else if (comment.premium_color_scheme) {
+      // Используем предустановленную схему автора
+      const colorScheme = PREMIUM_COLOR_SCHEMES.find((item) => item.id === comment.premium_color_scheme);
+      colors = colorScheme || PREMIUM_COLOR_SCHEMES[0];
+    } else {
+      // Дефолтная золотая схема
+      colors = PREMIUM_COLOR_SCHEMES[0];
+    }
+    
+    // Применяем цвета через inline стили к элементу
+    const bubble = element.querySelector('.bubble');
+    const authorEl = element.querySelector('.bubble__author');
+    
+    if (bubble) {
+      // Применяем градиент фона
+      bubble.style.background = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 50%, ${colors.color3} 100%)`;
+      bubble.style.borderColor = colors.border;
+      bubble.style.boxShadow = `0 0 20px ${colors.glow}`;
+    }
+    
+    if (authorEl) {
+      // Применяем цвет имени
+      authorEl.style.color = colors.nameColor;
+    }
+    
+    // Применяем цвет эмодзи если используется режим заливки
+    if (comment.premium_emoji_mode === 'color' && comment.premium_emoji_color) {
+      const badge = element.querySelector('.premium-badge');
+      if (badge) {
+        badge.style.setProperty('--premium-emoji-color', comment.premium_emoji_color);
+      }
+    }
+  }
+
   async function loadVisualSettings() {
     // Сначала пробуем загрузить с сервера
     if (state.apiBase && isAuthorizedUser()) {
@@ -996,6 +1044,63 @@
     el.editModal.hidden = true;
   }
 
+  function applyFormatting(format) {
+    const textarea = el.editTextarea;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    
+    let formattedText = '';
+    let cursorOffset = 0;
+    
+    switch(format) {
+      case 'bold':
+        formattedText = `**${selectedText}**`;
+        cursorOffset = selectedText ? formattedText.length : 2;
+        break;
+      case 'italic':
+        formattedText = `*${selectedText}*`;
+        cursorOffset = selectedText ? formattedText.length : 1;
+        break;
+      case 'strikethrough':
+        formattedText = `~~${selectedText}~~`;
+        cursorOffset = selectedText ? formattedText.length : 2;
+        break;
+      case 'code':
+        formattedText = `\`${selectedText}\``;
+        cursorOffset = selectedText ? formattedText.length : 1;
+        break;
+      case 'link':
+        const url = prompt('Введите URL:');
+        if (url) {
+          formattedText = `[${selectedText || 'текст ссылки'}](${url})`;
+          cursorOffset = formattedText.length;
+        } else {
+          return;
+        }
+        break;
+      default:
+        return;
+    }
+    
+    if (formattedText) {
+      textarea.value = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+      textarea.focus();
+      
+      // Устанавливаем курсор
+      if (selectedText) {
+        textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
+      } else {
+        textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
+      }
+      
+      // Обновляем счетчик
+      el.editCharCounter.textContent = textarea.value.length;
+    }
+  }
+
   async function saveEditedComment() {
     if (!state.editCommentId) return;
     
@@ -1112,7 +1217,7 @@
         // Добавляем новую реакцию
         // Проверяем лимит на 3 вида реакций для комментария
         if (!currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
-          alert("Максимум 3 вида реакций на комментарий");
+          showNotification("⚠️ Вы можете поставить максимум 3 разных реакции", "warning");
           return;
         }
         
@@ -1129,7 +1234,7 @@
       } else {
         // Проверяем лимит на 3 вида реакций
         if (!current && !currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
-          alert("Максимум 3 вида реакций на комментарий");
+          showNotification("⚠️ Вы можете поставить максимум 3 разных реакции", "warning");
           return;
         }
         
@@ -1673,17 +1778,28 @@
     }
   }
 
-  function showNotification(message) {
+  function showNotification(message, type = 'info') {
     // Создаем простое уведомление
     const notification = document.createElement("div");
     notification.className = "toast-notification";
     notification.textContent = message;
+    
+    // Цвета для разных типов уведомлений
+    const colors = {
+      'info': 'rgba(24, 119, 242, 0.95)',
+      'warning': 'rgba(255, 152, 0, 0.95)',
+      'error': 'rgba(255, 69, 58, 0.95)',
+      'success': 'rgba(52, 199, 89, 0.95)'
+    };
+    
+    const bgColor = colors[type] || colors['info'];
+    
     notification.style.cssText = `
       position: fixed;
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
+      background: ${bgColor};
       color: white;
       padding: 12px 24px;
       border-radius: 8px;
@@ -1691,6 +1807,7 @@
       font-size: 14px;
       text-align: center;
       animation: fadeInOut 3s ease-in-out;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     `;
     
     document.body.appendChild(notification);
@@ -1783,9 +1900,14 @@
       
       // Добавляем значок премиум рядом с ником (в конце)
       if (isAuthorPremium) {
-        authorEl.innerHTML = `${item.authorName || "Пользователь"} <span class="premium-badge"></span>`;
+        // Используем premium_emoji из данных комментария (если есть), иначе дефолтный
+        const authorPremiumEmoji = item.premium_emoji || '👑';
+        authorEl.innerHTML = `${item.authorName || "Пользователь"} <span class="premium-badge" style="--premium-emoji: '${authorPremiumEmoji}';"></span>`;
         // Добавляем класс для подсветки комментария
         node.classList.add("msg--premium");
+        
+        // Применяем индивидуальные премиум стили автора
+        applyUserPremiumStyles(item, node);
       } else {
         authorEl.textContent = item.authorName || "Пользователь";
       }
@@ -2498,6 +2620,37 @@
     });
     el.settingsBtn?.addEventListener("click", () => {
       el.settingsModal.hidden = false;
+      
+      // Проверяем премиум-статус и показываем/скрываем премиум-настройки
+      const premiumSections = document.querySelectorAll('.premium-settings-section');
+      if (state.user.isPremium) {
+        // Показываем премиум-настройки
+        premiumSections.forEach(section => {
+          section.style.display = '';
+          // Удаляем заглушку если она есть
+          const lockedMsg = section.querySelector('.premium-locked-message');
+          if (lockedMsg) lockedMsg.remove();
+        });
+      } else {
+        // Скрываем настройки и показываем заглушку
+        premiumSections.forEach(section => {
+          // Скрываем все элементы кроме label
+          const children = Array.from(section.children);
+          children.forEach(child => {
+            if (!child.classList.contains('settingsModal__label') && !child.classList.contains('premium-locked-message')) {
+              child.style.display = 'none';
+            }
+          });
+          
+          // Добавляем заглушку если её ещё нет
+          if (!section.querySelector('.premium-locked-message')) {
+            const lockedMsg = document.createElement('div');
+            lockedMsg.className = 'premium-locked-message';
+            lockedMsg.innerHTML = '<p>🔒 Для разблокировки премиум-функций оформите подписку в боте через /subscribe</p>';
+            section.appendChild(lockedMsg);
+          }
+        });
+      }
     });
     el.settingsCloseBtn?.addEventListener("click", () => {
       el.settingsModal.hidden = true;
@@ -3102,6 +3255,17 @@
 
     el.editCancelBtn?.addEventListener("click", closeEditModal);
     el.editCloseBtn?.addEventListener("click", closeEditModal);
+
+    // Обработчики для кнопок форматирования
+    document.querySelectorAll('.format-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const format = btn.dataset.format;
+        if (format) {
+          applyFormatting(format);
+        }
+      });
+    });
 
     // Обновление счетчика символов
     el.editTextarea?.addEventListener("input", () => {
