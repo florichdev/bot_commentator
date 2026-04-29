@@ -1673,6 +1673,13 @@
         replyTo: x.reply_to, // Добавляем поддержку ответов
         reactions: x.reactions || {}, // Добавляем реакции
         reactedBy: x.reacted_by || {}, // Добавляем информацию о том, кто поставил реакции
+        // КРИТИЧНО: Добавляем премиум-поля с сервера
+        premium_color_scheme: x.premium_color_scheme,
+        premium_color_mode: x.premium_color_mode,
+        premium_custom_colors: x.premium_custom_colors,
+        premium_emoji: x.premium_emoji,
+        premium_emoji_mode: x.premium_emoji_mode,
+        premium_emoji_color: x.premium_emoji_color,
       })).map(normalizeComment);
     } catch {
       return null;
