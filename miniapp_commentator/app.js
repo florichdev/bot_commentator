@@ -2667,7 +2667,12 @@
           if (!section.querySelector('.premium-locked-message')) {
             const lockedMsg = document.createElement('div');
             lockedMsg.className = 'premium-locked-message';
-            lockedMsg.innerHTML = '<p>🔒 Для разблокировки премиум-функций оформите подписку в боте через /subscribe</p>';
+            lockedMsg.innerHTML = `
+              <p>🔒 Для разблокировки премиум-функций оформите подписку в боте через /subscribe</p>
+              <button class="premium-buy-btn" onclick="openBotSubscribe()" type="button">
+                💎 Купить премиум
+              </button>
+            `;
             section.appendChild(lockedMsg);
           }
         });
@@ -3003,6 +3008,18 @@
       }
       window.open(botUrl, "_blank", "noopener");
     });
+    
+    // Глобальная функция для открытия бота с командой /subscribe
+    window.openBotSubscribe = function() {
+      const botUrl = "https://max.ru/id911114411208_3_bot?start=subscribe";
+      const webApp = getWebApp();
+      if (webApp && typeof webApp.openLink === "function") {
+        webApp.openLink(botUrl);
+        return;
+      }
+      window.open(botUrl, "_blank", "noopener");
+    };
+    
     el.attachBtn?.addEventListener("click", () => {
       el.fileInput.click();
     });

@@ -1086,10 +1086,33 @@ body::before{
 }
 
 .premium-locked-message p {
-  margin: 0;
+  margin: 0 0 12px 0;
   font-size: 14px;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.85);
+}
+
+.premium-buy-btn {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+}
+
+.premium-buy-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.premium-buy-btn:active {
+  transform: translateY(0);
 }
 
 .theme-light .premium-locked-message {
