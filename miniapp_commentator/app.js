@@ -3357,13 +3357,29 @@
   async function boot() {
     setThemeFromMax();
     ensureUserIdentity();
+    
+    // Загружаем API base и postId сначала
+    state.apiBase = getApiBase();
+    state.postId = resolvePostId();
+    state.postLink = resolvePostLink(state.postId);
+    
+    // Загружаем премиум-статус ПЕРЕД загрузкой визуальных настроек
+    if (state.user.id && state.apiBase) {
+      try {
+        const isPremium = await apiCheckPremiumStatus(state.user.id);
+        state.user.isPremium = isPremium;
+        console.log(`[DEBUG] User premium status loaded early: ${isPremium}`);
+      } catch (e) {
+        console.warn("Failed to load premium status early:", e);
+        state.user.isPremium = false;
+      }
+    }
+    
+    // Теперь загружаем визуальные настройки с учетом премиум статуса
     await loadVisualSettings();
     applyTheme();
     applyBackgroundScheme();
     applyPremiumColors();
-    state.apiBase = getApiBase();
-    state.postId = resolvePostId();
-    state.postLink = resolvePostLink(state.postId);
     
     // Дополнительная защита: очищаем старые комментарии если нет валидного postId
     if (!state.postId || state.postId === "default-post") {
@@ -3410,14 +3426,9 @@
       // Инициализируем счетчик после первой загрузки
       lastCommentCount = state.comments.length;
       
-      // Загружаем премиум-статус текущего пользователя
-      if (state.user.id && state.apiBase) {
+      // Загружаем премиум-статусы авторов комментариев (кроме текущего пользователя, его уже загрузили)
+      if (state.apiBase) {
         try {
-          const isPremium = await apiCheckPremiumStatus(state.user.id);
-          state.user.isPremium = isPremium;
-          console.log(`[DEBUG] User premium status loaded: ${isPremium}`);
-          
-          // Загружаем премиум-статусы авторов комментариев
           const authorIds = [...new Set(state.comments.map(c => c.authorId))];
           for (const authorId of authorIds) {
             if (authorId && authorId !== state.user.id) {
@@ -3434,7 +3445,7 @@
           render();
           renderContextReactions();
         } catch (e) {
-          console.warn("Failed to load premium status:", e);
+          console.warn("Failed to load author premium statuses:", e);
         }
       }
       
