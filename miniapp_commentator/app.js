@@ -3060,7 +3060,12 @@
         if (valueLEmoji) valueLEmoji.textContent = l + '%';
         if (hexValueEmoji) hexValueEmoji.textContent = hex;
         if (previewEmojiColor) previewEmojiColor.style.background = hex;
-        if (emojiColorPreview) emojiColorPreview.style.background = hex;
+        
+        // Применяем bloom эффект к предпросмотру
+        if (emojiColorPreview) {
+          emojiColorPreview.style.textShadow = `0 0 8px ${hex}, 0 0 16px ${hex}40, 0 0 24px ${hex}20`;
+          emojiColorPreview.style.filter = `drop-shadow(0 0 4px ${hex}) drop-shadow(0 0 8px ${hex}60)`;
+        }
         
         state.premiumEmojiColor = hex;
         state.premiumEmojiMode = 'color';
