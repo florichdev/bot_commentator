@@ -664,6 +664,15 @@
   }
   
   function applyPremiumColors() {
+    console.log("[DEBUG] applyPremiumColors called!");
+    console.log("[DEBUG] Current state:", {
+      premiumColorScheme: state.premiumColorScheme,
+      premiumColorMode: state.premiumColorMode,
+      premiumEmoji: state.premiumEmoji,
+      premiumEmojiMode: state.premiumEmojiMode,
+      premiumEmojiColor: state.premiumEmojiColor
+    });
+    
     let colors;
     
     if (state.premiumColorMode === "custom" && state.premiumCustomColors) {
@@ -684,10 +693,18 @@
     if (state.premiumEmojiMode === 'color') {
       document.documentElement.style.setProperty("--premium-emoji", `""`);
       document.documentElement.style.setProperty("--premium-emoji-color", state.premiumEmojiColor);
+      console.log("[DEBUG] Applied color mode, emoji color:", state.premiumEmojiColor);
     } else {
       document.documentElement.style.setProperty("--premium-emoji", `"${state.premiumEmoji}"`);
       document.documentElement.style.setProperty("--premium-emoji-color", "transparent");
+      console.log("[DEBUG] Applied emoji mode, emoji:", state.premiumEmoji);
     }
+    
+    console.log("[DEBUG] CSS variables set:", {
+      "--premium-color-1": colors.color1,
+      "--premium-emoji": state.premiumEmojiMode === 'color' ? '""' : state.premiumEmoji,
+      "--premium-emoji-color": state.premiumEmojiMode === 'color' ? state.premiumEmojiColor : 'transparent'
+    });
   }
   
   /**
