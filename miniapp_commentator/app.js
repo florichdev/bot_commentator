@@ -1139,9 +1139,27 @@
     render();
     closeEditModal();
     
-    // Отправляем на сервер (пока просто логируем, API редактирования будет позже)
-    console.log("[DEBUG] Comment edited:", { id: state.editCommentId, newText });
-    // TODO: Добавить API вызов для редактирования на сервере
+    // Отправляем на сервер
+    try {
+      const resp = await fetch(`${state.apiBase}/api/comments/${state.editCommentId}`, {
+        method: "PUT",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          post_id: state.postId,
+          text: newText
+        })
+      });
+      
+      if (!resp.ok) {
+        console.error("[DEBUG] Failed to save edit on server");
+        showNotification("⚠️ Изменения сохранены локально, но не синхронизированы с сервером", "warning");
+      } else {
+        console.log("[DEBUG] Comment edited successfully on server");
+      }
+    } catch (error) {
+      console.error("[DEBUG] Error saving edit:", error);
+      showNotification("⚠️ Изменения сохранены локально, но не синхронизированы с сервером", "warning");
+    }
   }
 
   async function deleteCommentForMe(commentId) {
@@ -1191,7 +1209,7 @@
         <span class="premium-reactions-hint__icon">👑</span>
         <span class="premium-reactions-hint__text">Больше реакций в премиум</span>
       `;
-      premiumHint.style.cssText = "grid-column: 1 / -1; text-align: center; padding: 8px; font-size: 12px; color: rgba(255,255,255,0.7); border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4px;";
+      premiumHint.style.cssText = "width: 100%; text-align: center; padding: 8px; font-size: 12px; color: rgba(255,255,255,0.7); border-top: 1px solid rgba(255,255,255,0.1); margin-top: 4px;";
       el.contextReactions.appendChild(premiumHint);
     }
   }
@@ -1202,14 +1220,13 @@
     item.reactions = item.reactions || {};
     item.reactedBy = item.reactedBy || {};
 
-    // Проверяем ограничение на 3 вида реакций
-    const currentReactionTypes = Object.keys(item.reactions).filter(key => item.reactions[key] > 0);
-    
-    // Для премиум-пользователей: множественные реакции
+    // Для премиум-пользователей: можно ставить до 3 реакций
+    // Для обычных пользователей: только 1 реакция
     const isPremium = state.user.isPremium;
+    const maxUserReactions = isPremium ? 3 : 1;
     
     if (isPremium) {
-      // Премиум: можно ставить несколько реакций
+      // Премиум: можно ставить до 3 реакций
       const userReactions = item.reactedBy[state.user.id];
       const userReactionsArray = Array.isArray(userReactions) ? userReactions : (userReactions ? [userReactions] : []);
       
@@ -1224,9 +1241,9 @@
         }
       } else {
         // Добавляем новую реакцию
-        // Проверяем лимит на 3 вида реакций для комментария
-        if (!currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
-          showNotification("⚠️ Вы можете поставить максимум 3 разных реакции", "warning");
+        // Проверяем лимит на 3 реакции для премиум-пользователя
+        if (userReactionsArray.length >= 3) {
+          showNotification("⚠️ Вы можете поставить максимум 3 реакции", "warning");
           return;
         }
         
@@ -1241,12 +1258,7 @@
         item.reactions[emoji] = Math.max(0, Number(item.reactions[emoji] || 0) - 1);
         delete item.reactedBy[state.user.id];
       } else {
-        // Проверяем лимит на 3 вида реакций
-        if (!current && !currentReactionTypes.includes(emoji) && currentReactionTypes.length >= 3) {
-          showNotification("⚠️ Вы можете поставить максимум 3 разных реакции", "warning");
-          return;
-        }
-        
+        // Меняем реакцию (убираем старую, ставим новую)
         if (current) {
           item.reactions[current] = Math.max(0, Number(item.reactions[current] || 0) - 1);
         }
@@ -2719,6 +2731,41 @@
       
       // Перерендериваем комментарии чтобы применить новые цвета
       render();
+    });
+    
+    // Обработчик переключения режима градиента (готовые/кастомные)
+    document.querySelectorAll('.premium-mode-btn[data-bg-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.bgMode;
+        if (!mode) return;
+        
+        // Проверяем премиум для кастомного режима
+        if (mode === 'custom' && !state.user.isPremium) {
+          showNotification("🔒 Кастомные градиенты доступны только в премиум-подписке", "warning");
+          return;
+        }
+        
+        state.bgMode = mode;
+        
+        // Обновляем активный класс кнопок
+        btn.parentElement.querySelectorAll('.premium-mode-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.bgMode === mode);
+        });
+        
+        // Показываем/скрываем соответствующие панели
+        const palette = document.getElementById('paletteGrid');
+        const picker = document.getElementById('customGradientPicker');
+        
+        if (mode === 'presets') {
+          palette.hidden = false;
+          picker.hidden = true;
+        } else {
+          palette.hidden = true;
+          picker.hidden = false;
+        }
+        
+        saveVisualSettings();
+      });
     });
     
     // Обработчик переключения режима (готовые/кастомные цвета)
