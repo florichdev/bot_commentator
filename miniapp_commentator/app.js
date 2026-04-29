@@ -665,6 +665,12 @@
   
   function applyPremiumColors() {
     console.log("[DEBUG] applyPremiumColors called!");
+    
+    if (!document.documentElement) {
+      console.error("[DEBUG] document.documentElement is null!");
+      return;
+    }
+    
     console.log("[DEBUG] Current state:", {
       premiumColorScheme: state.premiumColorScheme,
       premiumColorMode: state.premiumColorMode,
@@ -848,7 +854,12 @@
         // Применяем загруженные настройки к интерфейсу
         applyTheme();
         applyBackgroundScheme();
-        applyPremiumColors();
+        
+        // Применяем премиум-цвета с небольшой задержкой чтобы DOM успел загрузиться
+        setTimeout(() => {
+          applyPremiumColors();
+          console.log("[DEBUG] Premium colors applied after delay");
+        }, 100);
         
         console.log("[DEBUG] loadVisualSettings: Successfully loaded from server");
         return; // Успешно загрузили с сервера
@@ -909,7 +920,12 @@
     // Применяем загруженные настройки к интерфейсу
     applyTheme();
     applyBackgroundScheme();
-    applyPremiumColors();
+    
+    // Применяем премиум-цвета с небольшой задержкой
+    setTimeout(() => {
+      applyPremiumColors();
+      console.log("[DEBUG] Premium colors applied after delay (localStorage)");
+    }, 100);
   }
 
   // Debounced версия saveVisualSettings для оптимизации
@@ -1629,7 +1645,14 @@
           author_name: state.user.name,
           author_photo_url: state.user.photo_url,
           text: payloadText,
-          reply_to: state.replyTo, // Добавляем информацию об ответе
+          reply_to: state.replyTo,
+          // Добавляем премиум-настройки если пользователь премиум
+          premium_color_scheme: state.user.isPremium ? state.premiumColorScheme : null,
+          premium_color_mode: state.user.isPremium ? state.premiumColorMode : null,
+          premium_custom_colors: state.user.isPremium ? state.premiumCustomColors : null,
+          premium_emoji: state.user.isPremium ? state.premiumEmoji : null,
+          premium_emoji_mode: state.user.isPremium ? state.premiumEmojiMode : null,
+          premium_emoji_color: state.user.isPremium ? state.premiumEmojiColor : null,
         }),
       });
       
