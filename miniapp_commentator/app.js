@@ -102,7 +102,7 @@
     { id: "gradient9", label: "Лавандовый", gradient: "linear-gradient(90deg, #5b247a,#8e44ad,#c39bd3)" },
     { id: "gradient10", label: "Огненный", gradient: "linear-gradient(90deg, #c0392b,#e74c3c,#f39c12,#f1c40f)" },
   ];
-  const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+  const REACTIONS = ["👍", "❤️", "😂", "😮", "😡", "👎", "🔥", "🎉", "😢", "🤔", "👏", "👀", "💩", "😍", "😎", "😱", "🤢", "🥳", "💪", "🙏", "😘", "⭐", "🚀", "🥵", "🥶", "🤯", "🍷", "📝", "🤝", "✍️", "❤️‍🔥", "😁", "💯", "👌", "🎁", "🤑", "🫰", "🛌", "🛀", "🏴‍☠️", "🦾", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟", "💎", "🏆", "✨", "⚡"];
   
   // Базовые реакции (доступны всем)
   const BASIC_REACTIONS = ["❤️", "👍", "👎", "😂", "😮", "😢"];
@@ -1539,13 +1539,20 @@
 
   async function toggleReaction(item, emoji) {
     if (!emoji || !REACTIONS.includes(emoji)) return;
+    
+    // Проверка: обычные пользователи не могут ставить премиум-реакции
+    const isPremium = state.user.isPremium;
+    if (!isPremium && PREMIUM_REACTIONS.includes(emoji)) {
+      showNotification("👑 Эта реакция доступна только для премиум-пользователей", "warning");
+      return;
+    }
+    
     const current = item.reactedBy?.[state.user.id];
     item.reactions = item.reactions || {};
     item.reactedBy = item.reactedBy || {};
 
     // Для премиум-пользователей: можно ставить до 3 реакций
     // Для обычных пользователей: только 1 реакция
-    const isPremium = state.user.isPremium;
     const maxUserReactions = isPremium ? 3 : 1;
     
     if (isPremium) {
