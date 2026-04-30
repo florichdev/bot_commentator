@@ -2625,8 +2625,9 @@
         state.replyTo = {
           id: item.id,
           author: item.authorName || "Пользователь",
+          author_id: item.authorId,
           text: String(item.text || "").slice(0, 80),
-          attachments: item.attachments || [], // Добавляем вложения
+          attachments: item.attachments || [],
         };
         syncReplyPreview();
         el.commentInput.focus();
@@ -3662,8 +3663,9 @@
         state.replyTo = {
           id: item.id,
           author: item.authorName || "Пользователь",
+          author_id: item.authorId,
           text: String(item.text || "").slice(0, 80),
-          attachments: item.attachments || [], // Добавляем вложения
+          attachments: item.attachments || [],
         };
         syncReplyPreview();
         el.commentInput.focus();
