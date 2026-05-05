@@ -1287,9 +1287,12 @@
   }
 
   function openContextMenu(commentId, x, y) {
+    console.log("[DEBUG] openContextMenu called, commentId:", commentId);
     state.contextCommentId = commentId;
     
     const comment = findCommentById(commentId);
+    console.log("[DEBUG] openContextMenu: comment =", comment);
+    console.log("[DEBUG] openContextMenu: state.user =", state.user);
     
     // Показываем/скрываем кнопку редактирования
     if (comment && el.contextEditBtn) {
@@ -1297,6 +1300,7 @@
       const commentAge = Date.now() - new Date(comment.createdAt).getTime();
       const maxAge = 24 * 60 * 60 * 1000; // 24 часа
       const canEdit = isMine && commentAge <= maxAge && state.user.isPremium;
+      console.log("[DEBUG] openContextMenu: canEdit =", canEdit, "(isMine:", isMine, ", age:", commentAge, ", isPremium:", state.user.isPremium, ")");
       el.contextEditBtn.hidden = !canEdit;
     }
     
@@ -1306,6 +1310,7 @@
       const isMine = comment.authorId === state.user.id;
       const isChannelOwner = state.user.isChannelOwner || false;
       const canDelete = isMine || isChannelOwner;
+      console.log("[DEBUG] openContextMenu: canDelete =", canDelete, "(isMine:", isMine, ", isChannelOwner:", isChannelOwner, ")");
       el.contextDeleteBtn.hidden = !canDelete;
     }
     
@@ -3725,35 +3730,50 @@
 
     // Проверяем права администратора перед показом кнопки очистки
     async function checkAdminRights() {
+      console.log("[DEBUG] checkAdminRights called");
+      console.log("[DEBUG] state.apiBase:", state.apiBase);
+      console.log("[DEBUG] isAuthorizedUser():", isAuthorizedUser());
+      console.log("[DEBUG] state.postId:", state.postId);
+      console.log("[DEBUG] state.user:", state.user);
+      
       if (!state.apiBase || !isAuthorizedUser()) {
+        console.log("[DEBUG] checkAdminRights: No apiBase or not authorized, hiding clearBtn");
         if (el.clearBtn) el.clearBtn.style.display = "none";
         return;
       }
       
       try {
+        const url = `${state.apiBase}/api/check_admin?post_id=${encodeURIComponent(state.postId)}`;
+        console.log("[DEBUG] checkAdminRights: Fetching", url);
+        
         // Проверяем права через API
-        const resp = await fetch(`${state.apiBase}/api/check_admin?post_id=${encodeURIComponent(state.postId)}`, {
+        const resp = await fetch(url, {
           method: "GET",
           headers: apiHeaders(),
         });
         
+        console.log("[DEBUG] checkAdminRights: Response status", resp.status);
+        
         if (resp.ok) {
           const data = await resp.json();
+          console.log("[DEBUG] checkAdminRights: Response data", data);
           const isAdmin = data.is_admin || false;
           
           // Сохраняем информацию о правах владельца канала
           state.user.isChannelOwner = isAdmin;
+          console.log("[DEBUG] checkAdminRights: Set isChannelOwner =", isAdmin);
           
           if (el.clearBtn) {
             el.clearBtn.style.display = isAdmin ? "inline-flex" : "none";
           }
         } else {
+          console.log("[DEBUG] checkAdminRights: Response not OK");
           // Если API не поддерживает проверку прав, скрываем кнопку
           state.user.isChannelOwner = false;
           if (el.clearBtn) el.clearBtn.style.display = "none";
         }
       } catch (error) {
-        console.error("Failed to check admin rights:", error);
+        console.error("[DEBUG] checkAdminRights: Failed to check admin rights:", error);
         state.user.isChannelOwner = false;
         if (el.clearBtn) el.clearBtn.style.display = "none";
       }
