@@ -1311,7 +1311,11 @@
       const isChannelOwner = state.user.isChannelOwner || false;
       const canDelete = isMine || isChannelOwner;
       console.log("[DEBUG] openContextMenu: canDelete =", canDelete, "(isMine:", isMine, ", isChannelOwner:", isChannelOwner, ")");
+      console.log("[DEBUG] openContextMenu: Setting contextDeleteBtn.hidden =", !canDelete);
       el.contextDeleteBtn.hidden = !canDelete;
+      console.log("[DEBUG] openContextMenu: contextDeleteBtn.hidden is now", el.contextDeleteBtn.hidden);
+    } else {
+      console.log("[DEBUG] openContextMenu: comment or contextDeleteBtn is null", {comment, contextDeleteBtn: el.contextDeleteBtn});
     }
     
     el.contextMenu.hidden = false;
