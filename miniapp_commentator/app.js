@@ -85,6 +85,7 @@
     editCancelBtn: document.getElementById("editCancelBtn"),
     editCloseBtn: document.getElementById("editCloseBtn"),
     contextEditBtn: document.getElementById("contextEditBtn"),
+    contextDeleteBtn: document.querySelector('[data-menu-action="delete"]'),
   };
   const THEME_KEY = "max-commentator:theme";
   const BG_KEY = "max-commentator:bg";
@@ -1288,14 +1289,24 @@
   function openContextMenu(commentId, x, y) {
     state.contextCommentId = commentId;
     
-    // Показываем/скрываем кнопку редактирования
     const comment = findCommentById(commentId);
+    
+    // Показываем/скрываем кнопку редактирования
     if (comment && el.contextEditBtn) {
       const isMine = comment.authorId === state.user.id;
       const commentAge = Date.now() - new Date(comment.createdAt).getTime();
       const maxAge = 24 * 60 * 60 * 1000; // 24 часа
       const canEdit = isMine && commentAge <= maxAge && state.user.isPremium;
       el.contextEditBtn.hidden = !canEdit;
+    }
+    
+    // Показываем/скрываем кнопку удаления
+    // Удалить может: автор комментария ИЛИ владелец канала
+    if (comment && el.contextDeleteBtn) {
+      const isMine = comment.authorId === state.user.id;
+      const isChannelOwner = state.user.isChannelOwner || false;
+      const canDelete = isMine || isChannelOwner;
+      el.contextDeleteBtn.hidden = !canDelete;
     }
     
     el.contextMenu.hidden = false;
@@ -3729,15 +3740,21 @@
         if (resp.ok) {
           const data = await resp.json();
           const isAdmin = data.is_admin || false;
+          
+          // Сохраняем информацию о правах владельца канала
+          state.user.isChannelOwner = isAdmin;
+          
           if (el.clearBtn) {
             el.clearBtn.style.display = isAdmin ? "inline-flex" : "none";
           }
         } else {
           // Если API не поддерживает проверку прав, скрываем кнопку
+          state.user.isChannelOwner = false;
           if (el.clearBtn) el.clearBtn.style.display = "none";
         }
       } catch (error) {
         console.error("Failed to check admin rights:", error);
+        state.user.isChannelOwner = false;
         if (el.clearBtn) el.clearBtn.style.display = "none";
       }
     }
